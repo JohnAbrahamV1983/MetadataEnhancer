@@ -41,6 +41,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Disconnect from Google Drive
+  app.post("/api/auth/disconnect", async (req, res) => {
+    try {
+      googleDriveService.disconnect();
+      res.json({ success: true, message: "Disconnected from Google Drive" });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Handle Google OAuth callback (GET request from redirect)
   app.get("/api/auth/google/callback", async (req, res) => {
     try {

@@ -79,6 +79,10 @@ export class GoogleDriveService {
     }
   }
 
+  disconnect(): void {
+    this.auth.setCredentials({});
+  }
+
   async setAuthToken(code: string): Promise<void> {
     const { tokens } = await this.auth.getToken(code);
     this.auth.setCredentials(tokens);

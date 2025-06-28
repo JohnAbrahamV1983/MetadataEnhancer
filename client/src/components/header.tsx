@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit } from "lucide-react";
+import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit, LogOut } from "lucide-react";
 
 interface HeaderProps {
   currentFolderId: string;
@@ -123,6 +123,27 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
     },
   });
 
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/auth/disconnect");
+      return response.json();
+    },
+    onSuccess: () => {
+      refetchAuthStatus();
+      toast({
+        title: "Disconnected",
+        description: "You have been disconnected from Google Drive.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Disconnect failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleTemplateUpload = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -141,16 +162,27 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
         
         <div className="flex items-center space-x-4">
           {isConnected ? (
-            <div className="flex items-center space-x-2 px-3 py-1 bg-accent/10 rounded-full">
-              <div className="w-2 h-2 bg-accent rounded-full"></div>
-              <div className="flex flex-col">
-                <span className="text-sm text-accent font-medium">Connected to Google Drive</span>
-                {userInfo && (
-                  <span className="text-xs text-muted-foreground">
-                    {userInfo.name} ({userInfo.email})
-                  </span>
-                )}
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 px-3 py-1 bg-accent/10 rounded-full">
+                <div className="w-2 h-2 bg-accent rounded-full"></div>
+                <div className="flex flex-col">
+                  <span className="text-sm text-accent font-medium">Connected to Google Drive</span>
+                  {userInfo && (
+                    <span className="text-xs text-muted-foreground">
+                      {userInfo.name} ({userInfo.email})
+                    </span>
+                  )}
+                </div>
               </div>
+              <Button 
+                onClick={() => disconnectMutation.mutate()}
+                disabled={disconnectMutation.isPending}
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           ) : (
             <Button 
