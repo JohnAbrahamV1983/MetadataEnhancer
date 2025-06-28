@@ -1,17 +1,13 @@
-import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type DriveFile } from "@shared/schema";
-import { Save, RefreshCw, Calendar, Monitor, Camera } from "lucide-react";
+import { RefreshCw, Monitor } from "lucide-react";
 
 interface MetadataPanelProps {
   file: DriveFile | null;
@@ -19,33 +15,7 @@ interface MetadataPanelProps {
 }
 
 export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps) {
-  const [customMetadata, setCustomMetadata] = useState<Record<string, any>>({});
   const { toast } = useToast();
-
-  const saveMetadataMutation = useMutation({
-    mutationFn: async () => {
-      if (!file) throw new Error("No file selected");
-      
-      const response = await apiRequest("PATCH", `/api/files/${file.id}`, {
-        customMetadata
-      });
-      return response.json();
-    },
-    onSuccess: (updatedFile) => {
-      toast({
-        title: "Metadata saved",
-        description: "File metadata has been updated successfully.",
-      });
-      onFileUpdate(updatedFile);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Save failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
   const regenerateMetadataMutation = useMutation({
     mutationFn: async () => {
@@ -209,80 +179,66 @@ export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps
             </Card>
           )}
 
-          {/* Custom Metadata Fields */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Custom Fields</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="projectName" className="text-sm text-muted-foreground">Project Name</Label>
-                <Input 
-                  id="projectName"
-                  placeholder="Enter project name"
-                  value={customMetadata.projectName || file.customMetadata?.projectName || ""}
-                  onChange={(e) => setCustomMetadata(prev => ({ ...prev, projectName: e.target.value }))}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="brand" className="text-sm text-muted-foreground">Brand</Label>
-                <Select 
-                  value={customMetadata.brand || file.customMetadata?.brand || ""}
-                  onValueChange={(value) => setCustomMetadata(prev => ({ ...prev, brand: value }))}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select brand" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="brand-a">Brand A</SelectItem>
-                    <SelectItem value="brand-b">Brand B</SelectItem>
-                    <SelectItem value="brand-c">Brand C</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="usageRights" className="text-sm text-muted-foreground">Usage Rights</Label>
-                <Select 
-                  value={customMetadata.usageRights || file.customMetadata?.usageRights || ""}
-                  onValueChange={(value) => setCustomMetadata(prev => ({ ...prev, usageRights: value }))}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select usage rights" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="commercial">Commercial Use</SelectItem>
-                    <SelectItem value="editorial">Editorial Use</SelectItem>
-                    <SelectItem value="internal">Internal Use Only</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Custom/Manual Metadata */}
+          {file.customMetadata && Object.keys(file.customMetadata).length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Custom Metadata</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {Object.entries(file.customMetadata).map(([key, value]) => {
+                  if (!value) return null;
+                  
+                  const fieldName = key.charAt(0).toUpperCase() + key.slice(1);
+                  
+                  return (
+                    <div key={key} className="flex justify-between items-start">
+                      <span className="text-sm text-muted-foreground">{fieldName}</span>
+                      <span className="text-sm text-foreground">{String(value)}</span>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Existing Drive Metadata */}
+          {file.existingMetadata && Object.keys(file.existingMetadata).length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Drive Metadata</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {Object.entries(file.existingMetadata).map(([key, value]) => {
+                  if (!value) return null;
+                  
+                  const fieldName = key.charAt(0).toUpperCase() + key.slice(1);
+                  
+                  return (
+                    <div key={key} className="flex justify-between items-start">
+                      <span className="text-sm text-muted-foreground">{fieldName}</span>
+                      <span className="text-sm text-foreground">{String(value)}</span>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Action Buttons */}
-          <div className="space-y-3">
-            <Button 
-              className="w-full"
-              onClick={() => saveMetadataMutation.mutate()}
-              disabled={saveMetadataMutation.isPending}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {saveMetadataMutation.isPending ? "Saving..." : "Save Metadata"}
-            </Button>
-            
-            <Button 
-              variant="outline"
-              className="w-full"
-              onClick={() => regenerateMetadataMutation.mutate()}
-              disabled={regenerateMetadataMutation.isPending || file.status === "processing"}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {regenerateMetadataMutation.isPending ? "Regenerating..." : "Regenerate AI Metadata"}
-            </Button>
-          </div>
+          {file.status === "processed" && (
+            <div className="space-y-3">
+              <Button 
+                variant="outline"
+                className="w-full"
+                onClick={() => regenerateMetadataMutation.mutate()}
+                disabled={regenerateMetadataMutation.isPending || file.status === "processing"}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {regenerateMetadataMutation.isPending ? "Regenerating..." : "Regenerate AI Metadata"}
+              </Button>
+            </div>
+          )}
         </div>
       </ScrollArea>
     </aside>
