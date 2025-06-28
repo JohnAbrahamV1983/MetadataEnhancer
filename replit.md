@@ -104,6 +104,7 @@ This is a full-stack web application built for Google Drive file metadata proces
 ```
 Changelog:
 - June 28, 2025. Initial setup
+- June 28, 2025. Enhanced folder picker with Windows-like browser interface
 ```
 
 ## User Preferences

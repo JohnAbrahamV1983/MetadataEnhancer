@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit, LogOut, Download } from "lucide-react";
+import FolderBrowser from "./folder-browser";
 
 interface HeaderProps {
   currentFolderId: string;
@@ -260,27 +261,18 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
                     Change Folder
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle>Select Folder</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <Label>Choose a folder to process:</Label>
-                    <Select onValueChange={(value) => {
-                      onFolderChange(value);
-                      setShowFolderDialog(false);
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a folder" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {folders?.map((folder) => (
-                          <SelectItem key={folder.id} value={folder.id}>
-                            {folder.path}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FolderBrowser
+                      selectedFolderId={currentFolderId}
+                      onFolderSelect={(folderId) => {
+                        onFolderChange(folderId);
+                        setShowFolderDialog(false);
+                      }}
+                    />
                   </div>
                 </DialogContent>
               </Dialog>
