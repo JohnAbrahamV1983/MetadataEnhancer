@@ -103,10 +103,6 @@ export default function FolderBrowser({ selectedFolderId, onFolderSelect }: Fold
   };
 
   const folderTree = buildFolderTree(allFolders);
-  
-  // Debug logging to understand folder structure
-  console.log('All folders received:', allFolders);
-  console.log('Built folder tree:', folderTree);
 
   const toggleFolder = (folderId: string) => {
     const newExpanded = new Set(expandedFolders);
