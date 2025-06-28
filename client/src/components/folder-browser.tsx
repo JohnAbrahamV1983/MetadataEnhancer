@@ -45,24 +45,68 @@ export default function FolderBrowser({ selectedFolderId, onFolderSelect }: Fold
     folderMap.set("root", rootFolder);
     rootFolders.push(rootFolder);
 
-    // Create all folder nodes with simpler structure
+    // Create all folder nodes
     folders.forEach(folder => {
+      // Clean path and calculate depth - Google Drive paths start with "/"
+      const cleanPath = folder.path.startsWith('/') ? folder.path.substring(1) : folder.path;
+      const pathParts = cleanPath.split("/").filter(part => part.trim() !== "");
+      const level = pathParts.length;
+      
       const node: FolderNode = {
         ...folder,
-        level: 1, // Simple flat structure under root for now
+        level: level,
         children: []
       };
       folderMap.set(folder.id, node);
-      rootFolder.children!.push(node); // All folders go under root for simplicity
     });
 
-    // Sort folders alphabetically
-    rootFolder.children!.sort((a, b) => a.name.localeCompare(b.name));
+    // Build parent-child relationships
+    folders.forEach(folder => {
+      const node = folderMap.get(folder.id)!;
+      const cleanPath = folder.path.startsWith('/') ? folder.path.substring(1) : folder.path;
+      const pathParts = cleanPath.split("/").filter(part => part.trim() !== "");
+      
+      if (pathParts.length === 1) {
+        // Top-level folder under root
+        if (!rootFolder.children!.some(child => child.id === node.id)) {
+          rootFolder.children!.push(node);
+        }
+      } else {
+        // Find parent folder by path
+        const parentPath = "/" + pathParts.slice(0, -1).join("/");
+        const parentFolder = folders.find(f => f.path === parentPath);
+        
+        if (parentFolder) {
+          const parentNode = folderMap.get(parentFolder.id);
+          if (parentNode && !parentNode.children!.some(child => child.id === node.id)) {
+            parentNode.children!.push(node);
+          }
+        } else {
+          // If parent not found, put under root
+          if (!rootFolder.children!.some(child => child.id === node.id)) {
+            rootFolder.children!.push(node);
+          }
+        }
+      }
+    });
+
+    // Sort all children alphabetically
+    const sortChildren = (node: FolderNode) => {
+      if (node.children && node.children.length > 0) {
+        node.children.sort((a, b) => a.name.localeCompare(b.name));
+        node.children.forEach(sortChildren);
+      }
+    };
+    sortChildren(rootFolder);
 
     return rootFolders;
   };
 
   const folderTree = buildFolderTree(allFolders);
+  
+  // Debug logging to understand folder structure
+  console.log('All folders received:', allFolders);
+  console.log('Built folder tree:', folderTree);
 
   const toggleFolder = (folderId: string) => {
     const newExpanded = new Set(expandedFolders);
