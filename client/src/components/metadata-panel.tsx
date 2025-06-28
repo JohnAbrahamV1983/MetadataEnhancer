@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type DriveFile } from "@shared/schema";
-import { RefreshCw, Monitor } from "lucide-react";
+import { RefreshCw, Monitor, Upload } from "lucide-react";
 
 interface MetadataPanelProps {
   file: DriveFile | null;
@@ -17,14 +17,7 @@ interface MetadataPanelProps {
 export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps) {
   const { toast } = useToast();
 
-  // Debug: Log file data to understand what's available
-  if (file) {
-    console.log('File data:', file);
-    console.log('AI Generated Metadata:', file.aiGeneratedMetadata);
-    console.log('Custom Metadata:', file.customMetadata);
-    console.log('Existing Metadata:', file.existingMetadata);
-    console.log('File status:', file.status);
-  }
+
 
   const regenerateMetadataMutation = useMutation({
     mutationFn: async () => {
@@ -42,6 +35,28 @@ export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps
     onError: (error: any) => {
       toast({
         title: "Regeneration failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const exportMetadataMutation = useMutation({
+    mutationFn: async () => {
+      if (!file) throw new Error("No file selected");
+      
+      const response = await apiRequest("POST", `/api/export/file/${file.id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Metadata exported",
+        description: "AI-generated metadata has been saved to Google Drive. You can now view it in Google Drive's file properties.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Export failed",
         description: error.message,
         variant: "destructive",
       });
@@ -235,8 +250,17 @@ export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps
           )}
 
           {/* Action Buttons */}
-          {file.status === "processed" && (
+          {file.status === "processed" && file.aiGeneratedMetadata && (
             <div className="space-y-3">
+              <Button 
+                className="w-full"
+                onClick={() => exportMetadataMutation.mutate()}
+                disabled={exportMetadataMutation.isPending}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {exportMetadataMutation.isPending ? "Exporting..." : "Export to Google Drive"}
+              </Button>
+              
               <Button 
                 variant="outline"
                 className="w-full"

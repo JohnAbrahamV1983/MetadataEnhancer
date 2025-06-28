@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit, LogOut, Download } from "lucide-react";
+import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit, LogOut, Download, CloudUpload } from "lucide-react";
 import FolderBrowser from "./folder-browser";
 
 interface HeaderProps {
@@ -143,6 +143,26 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
     onError: (error: any) => {
       toast({
         title: "Disconnect failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const bulkExportMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/export/folder/${currentFolderId}`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Bulk export completed",
+        description: `Exported metadata for ${data.exportedCount} files to Google Drive. You can now view the metadata in Google Drive's file properties.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Export failed",
         description: error.message,
         variant: "destructive",
       });
@@ -311,6 +331,16 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
               >
                 <Play className="h-4 w-4 mr-2" />
                 Start Processing
+              </Button>
+              
+              <Button 
+                variant="outline"
+                onClick={() => bulkExportMutation.mutate()}
+                disabled={!currentFolderId || bulkExportMutation.isPending}
+                size="sm"
+              >
+                <CloudUpload className="h-4 w-4 mr-2" />
+                {bulkExportMutation.isPending ? "Exporting..." : "Export All to Drive"}
               </Button>
             </div>
           </div>

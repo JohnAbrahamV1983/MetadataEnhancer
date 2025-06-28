@@ -168,6 +168,58 @@ export class FileProcessorService {
       throw new Error(`Failed to process batch: ${error.message}`);
     }
   }
+
+  async exportMetadataToDrive(file: DriveFile): Promise<void> {
+    try {
+      if (!file.aiGeneratedMetadata) {
+        throw new Error('No AI-generated metadata to export');
+      }
+
+      // Convert metadata to string properties for Google Drive
+      const properties: Record<string, string> = {};
+      
+      Object.entries(file.aiGeneratedMetadata).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          // Convert arrays (like tags) to comma-separated strings
+          properties[`AI_${key}`] = value.join(', ');
+        } else {
+          properties[`AI_${key}`] = String(value);
+        }
+      });
+
+      // Add a timestamp for when metadata was generated
+      properties['AI_Generated_At'] = new Date().toISOString();
+      properties['AI_Generated_By'] = 'Metadata Enhancement Application';
+
+      await googleDriveService.updateFileProperties(file.driveId, properties);
+      
+      console.log(`Exported metadata to Google Drive for file: ${file.name}`);
+    } catch (error) {
+      console.error(`Failed to export metadata to Drive: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async exportAllMetadataToDrive(folderId: string): Promise<number> {
+    try {
+      const files = await storage.getDriveFilesByFolder(folderId);
+      const processedFiles = files.filter(f => f.status === 'processed' && f.aiGeneratedMetadata);
+      
+      let exported = 0;
+      for (const file of processedFiles) {
+        try {
+          await this.exportMetadataToDrive(file);
+          exported++;
+        } catch (error) {
+          console.error(`Failed to export metadata for ${file.name}:`, error);
+        }
+      }
+      
+      return exported;
+    } catch (error) {
+      throw new Error(`Failed to export batch metadata: ${error.message}`);
+    }
+  }
 }
 
 export const fileProcessorService = new FileProcessorService();

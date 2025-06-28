@@ -359,6 +359,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export metadata to Google Drive routes
+  app.post("/api/export/file/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const file = await storage.getDriveFile(parseInt(id));
+      
+      if (!file) {
+        return res.status(404).json({ message: "File not found" });
+      }
+      
+      if (!file.aiGeneratedMetadata) {
+        return res.status(400).json({ message: "No AI-generated metadata to export" });
+      }
+
+      await fileProcessorService.exportMetadataToDrive(file);
+      res.json({ message: "Metadata exported to Google Drive successfully" });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/export/folder/:folderId", async (req, res) => {
+    try {
+      const { folderId } = req.params;
+      const exportedCount = await fileProcessorService.exportAllMetadataToDrive(folderId);
+      
+      res.json({ 
+        message: `Exported metadata for ${exportedCount} files to Google Drive`,
+        exportedCount 
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
