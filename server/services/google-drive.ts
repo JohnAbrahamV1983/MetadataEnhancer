@@ -60,6 +60,25 @@ export class GoogleDriveService {
     return !!(credentials && (credentials.access_token || credentials.refresh_token));
   }
 
+  async getUserInfo(): Promise<{ name: string; email: string } | null> {
+    if (!this.isAuthenticated()) {
+      return null;
+    }
+
+    try {
+      const oauth2 = google.oauth2({ version: 'v2', auth: this.auth });
+      const response = await oauth2.userinfo.get();
+      
+      return {
+        name: response.data.name || 'Unknown User',
+        email: response.data.email || 'Unknown Email'
+      };
+    } catch (error) {
+      console.error('Failed to get user info:', error);
+      return null;
+    }
+  }
+
   async setAuthToken(code: string): Promise<void> {
     const { tokens } = await this.auth.getToken(code);
     this.auth.setCredentials(tokens);

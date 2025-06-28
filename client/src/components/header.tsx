@@ -29,12 +29,14 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
   });
 
   const isConnected = authStatus?.isAuthenticated || false;
-  
-  // Debug logging
-  console.log('Auth Status:', authStatus, 'Is Connected:', isConnected);
 
   const { data: folders } = useQuery({
     queryKey: ["/api/drive/folders"],
+    enabled: isConnected,
+  });
+
+  const { data: userInfo } = useQuery({
+    queryKey: ["/api/auth/user"],
     enabled: isConnected,
   });
 
@@ -141,7 +143,14 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
           {isConnected ? (
             <div className="flex items-center space-x-2 px-3 py-1 bg-accent/10 rounded-full">
               <div className="w-2 h-2 bg-accent rounded-full"></div>
-              <span className="text-sm text-accent font-medium">Connected to Google Drive</span>
+              <div className="flex flex-col">
+                <span className="text-sm text-accent font-medium">Connected to Google Drive</span>
+                {userInfo && (
+                  <span className="text-xs text-muted-foreground">
+                    {userInfo.name} ({userInfo.email})
+                  </span>
+                )}
+              </div>
             </div>
           ) : (
             <Button 

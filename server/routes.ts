@@ -31,6 +31,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get authenticated user info
+  app.get("/api/auth/user", async (req, res) => {
+    try {
+      const userInfo = await googleDriveService.getUserInfo();
+      res.json(userInfo);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Handle Google OAuth callback (GET request from redirect)
   app.get("/api/auth/google/callback", async (req, res) => {
     try {
