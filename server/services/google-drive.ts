@@ -1,7 +1,11 @@
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 
-const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
+const SCOPES = [
+  'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/userinfo.email'
+];
 
 interface DriveFileInfo {
   id: string;
@@ -73,8 +77,13 @@ export class GoogleDriveService {
         name: response.data.name || 'Unknown User',
         email: response.data.email || 'Unknown Email'
       };
-    } catch (error) {
-      console.error('Failed to get user info:', error);
+    } catch (error: any) {
+      console.error('Failed to get user info:', error?.message || error);
+      // If it's an auth error, the tokens might be expired
+      if (error?.code === 401 || error?.status === 401) {
+        console.log('Authentication error - tokens may be expired');
+        return null;
+      }
       return null;
     }
   }

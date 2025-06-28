@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,6 +19,7 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
   const [showFolderDialog, setShowFolderDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Check authentication status
   const { data: authStatus, refetch: refetchAuthStatus } = useQuery({
@@ -49,6 +50,8 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
         refetchAuthStatus();
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/drive/folders"] });
         toast({
           title: "Connected to Google Drive",
           description: "You can now browse and process your files.",
@@ -130,6 +133,8 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
     },
     onSuccess: () => {
       refetchAuthStatus();
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/drive/folders"] });
       toast({
         title: "Disconnected",
         description: "You have been disconnected from Google Drive.",
