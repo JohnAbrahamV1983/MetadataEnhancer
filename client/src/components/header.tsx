@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit, LogOut } from "lucide-react";
+import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit, LogOut, Download } from "lucide-react";
 
 interface HeaderProps {
   currentFolderId: string;
@@ -119,7 +119,7 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
     onError: (error: any) => {
       toast({
         title: "Upload failed",
-        description: error.message,
+        description: error.message + ". CSV format: fieldName,fieldDescription,fieldType,options. Excel columns: name,description,type,options",
         variant: "destructive",
       });
     },
@@ -147,6 +147,26 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
       });
     },
   });
+
+  const downloadSampleTemplate = () => {
+    const sampleCSV = `Title,Description of image content,text,
+Subject,Main subject or focus of the image,text,
+Location,Where the image was taken,text,
+Tags,Relevant keywords,tags,tag1;tag2;tag3
+Quality,Image quality assessment,select,Excellent;Good;Fair;Poor
+Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
+
+    const blob = new Blob([sampleCSV], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = 'metadata-template-sample.csv';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -274,6 +294,14 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
                 style={{ display: 'none' }}
                 id="csv-file-input"
               />
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={downloadSampleTemplate}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Sample
+              </Button>
               <Button 
                 variant="outline" 
                 size="sm"
