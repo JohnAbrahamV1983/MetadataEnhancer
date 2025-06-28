@@ -25,15 +25,9 @@ export default function ProcessingModal({ isOpen, onClose, folderId }: Processin
   });
 
   const { data: currentJob, refetch: refetchJob } = useQuery({
-    queryKey: ["/api/jobs", currentJobId],
+    queryKey: [`/api/jobs/${currentJobId}`],
     enabled: !!currentJobId,
-    refetchInterval: (data) => {
-      // Stop polling if job is completed or failed
-      if (!currentJobId || (data && (data.status === 'completed' || data.status === 'failed'))) {
-        return false;
-      }
-      return 1000; // Poll every second while running
-    },
+    refetchInterval: 1000, // Poll every second when enabled
   });
 
   const startProcessingMutation = useMutation({
