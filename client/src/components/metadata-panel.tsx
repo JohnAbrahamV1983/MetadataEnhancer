@@ -17,6 +17,15 @@ interface MetadataPanelProps {
 export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps) {
   const { toast } = useToast();
 
+  // Debug: Log file data to understand what's available
+  if (file) {
+    console.log('File data:', file);
+    console.log('AI Generated Metadata:', file.aiGeneratedMetadata);
+    console.log('Custom Metadata:', file.customMetadata);
+    console.log('Existing Metadata:', file.existingMetadata);
+    console.log('File status:', file.status);
+  }
+
   const regenerateMetadataMutation = useMutation({
     mutationFn: async () => {
       if (!file) throw new Error("No file selected");
