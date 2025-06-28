@@ -140,6 +140,9 @@ export class FileProcessorService {
         try {
           await this.processFile(file, template);
           processed++;
+          
+          // Add small delay to make progress visible to users
+          await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (error) {
           failed++;
           console.error(`Failed to process file ${file.name}:`, error);
@@ -150,6 +153,8 @@ export class FileProcessorService {
           processedFiles: processed,
           failedFiles: failed
         });
+        
+        console.log(`Batch processing progress: ${processed + failed}/${files.length} files processed`);
       }
 
       // Complete the job

@@ -27,7 +27,7 @@ export default function ProcessingModal({ isOpen, onClose, folderId }: Processin
   const { data: currentJob, refetch: refetchJob } = useQuery({
     queryKey: ["/api/jobs", currentJobId],
     enabled: !!currentJobId,
-    refetchInterval: currentJobId ? 2000 : false, // Poll every 2 seconds when processing
+    refetchInterval: currentJobId && (!currentJob || currentJob.status === 'running') ? 1000 : false, // Poll every second when active
   });
 
   const startProcessingMutation = useMutation({
@@ -92,7 +92,7 @@ export default function ProcessingModal({ isOpen, onClose, folderId }: Processin
         </DialogHeader>
 
         <div className="space-y-6">
-          {!currentJobId ? (
+          {!currentJobId && !startProcessingMutation.isPending ? (
             // Setup phase
             <>
               <p className="text-sm text-muted-foreground">
@@ -132,6 +132,16 @@ export default function ProcessingModal({ isOpen, onClose, folderId }: Processin
                 <Button variant="outline" onClick={handleClose}>
                   Cancel
                 </Button>
+              </div>
+            </>
+          ) : startProcessingMutation.isPending ? (
+            // Starting phase
+            <>
+              <div className="text-center space-y-4">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <p className="text-sm text-muted-foreground">
+                  Initializing processing...
+                </p>
               </div>
             </>
           ) : (
