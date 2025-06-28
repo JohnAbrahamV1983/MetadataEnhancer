@@ -13,9 +13,10 @@ interface ProcessingModalProps {
   isOpen: boolean;
   onClose: () => void;
   folderId: string;
+  onProcessingComplete?: () => void;
 }
 
-export default function ProcessingModal({ isOpen, onClose, folderId }: ProcessingModalProps) {
+export default function ProcessingModal({ isOpen, onClose, folderId, onProcessingComplete }: ProcessingModalProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("default");
   const [currentJobId, setCurrentJobId] = useState<number | null>(null);
   const { toast } = useToast();
@@ -29,6 +30,13 @@ export default function ProcessingModal({ isOpen, onClose, folderId }: Processin
     enabled: !!currentJobId,
     refetchInterval: 1000, // Poll every second when enabled
   });
+
+  // Watch for job completion and trigger refresh
+  useEffect(() => {
+    if (currentJob && currentJob.status === 'completed' && onProcessingComplete) {
+      onProcessingComplete();
+    }
+  }, [currentJob?.status, onProcessingComplete]);
 
   const startProcessingMutation = useMutation({
     mutationFn: async () => {

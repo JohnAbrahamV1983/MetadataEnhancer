@@ -161,7 +161,7 @@ export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps
           </Card>
 
           {/* AI-Generated Metadata */}
-          {file.aiGeneratedMetadata && (
+          {file.aiGeneratedMetadata && Object.keys(file.aiGeneratedMetadata).length > 0 && (
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -170,35 +170,41 @@ export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {file.aiGeneratedMetadata.description && (
-                  <div>
-                    <Label className="text-sm text-muted-foreground">Description</Label>
-                    <p className="text-sm text-foreground bg-muted p-3 rounded-lg mt-1">
-                      {file.aiGeneratedMetadata.description}
-                    </p>
-                  </div>
-                )}
-                
-                {file.aiGeneratedMetadata.keywords && (
-                  <div>
-                    <Label className="text-sm text-muted-foreground mb-2 block">Keywords</Label>
-                    {renderKeywords(file.aiGeneratedMetadata.keywords)}
-                  </div>
-                )}
-                
-                {file.aiGeneratedMetadata.category && (
-                  <div>
-                    <Label className="text-sm text-muted-foreground">Category</Label>
-                    <p className="text-sm text-foreground">{file.aiGeneratedMetadata.category}</p>
-                  </div>
-                )}
-                
-                {file.aiGeneratedMetadata.mood && (
-                  <div>
-                    <Label className="text-sm text-muted-foreground">Mood</Label>
-                    <p className="text-sm text-foreground">{file.aiGeneratedMetadata.mood}</p>
-                  </div>
-                )}
+                {Object.entries(file.aiGeneratedMetadata).map(([key, value]) => {
+                  if (!value) return null;
+                  
+                  // Handle different field types
+                  const fieldName = key.charAt(0).toUpperCase() + key.slice(1);
+                  
+                  if (Array.isArray(value) || (typeof value === 'string' && value.includes(';'))) {
+                    // Handle tags/keywords fields
+                    const items = Array.isArray(value) ? value : value.split(';').map(s => s.trim()).filter(Boolean);
+                    return (
+                      <div key={key}>
+                        <Label className="text-sm text-muted-foreground mb-2 block">{fieldName}</Label>
+                        {renderKeywords(items)}
+                      </div>
+                    );
+                  } else if (key.toLowerCase().includes('description') || key.toLowerCase().includes('subject')) {
+                    // Handle description fields with styled background
+                    return (
+                      <div key={key}>
+                        <Label className="text-sm text-muted-foreground">{fieldName}</Label>
+                        <p className="text-sm text-foreground bg-muted p-3 rounded-lg mt-1">
+                          {String(value)}
+                        </p>
+                      </div>
+                    );
+                  } else {
+                    // Handle regular text fields
+                    return (
+                      <div key={key}>
+                        <Label className="text-sm text-muted-foreground">{fieldName}</Label>
+                        <p className="text-sm text-foreground">{String(value)}</p>
+                      </div>
+                    );
+                  }
+                })}
               </CardContent>
             </Card>
           )}

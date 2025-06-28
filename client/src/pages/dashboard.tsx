@@ -62,6 +62,13 @@ export default function Dashboard() {
         isOpen={showProcessingModal}
         onClose={() => setShowProcessingModal(false)}
         folderId={currentFolderId}
+        onProcessingComplete={() => {
+          refetchFiles();
+          // Also refresh the selected file if it exists
+          if (selectedFile) {
+            handleFileSelect(selectedFile);
+          }
+        }}
       />
     </div>
   );
