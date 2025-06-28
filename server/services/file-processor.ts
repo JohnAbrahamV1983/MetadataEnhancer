@@ -182,17 +182,69 @@ export class FileProcessorService {
         // Sanitize the key to only contain allowed characters for Google Drive
         const sanitizedKey = `AI_${key}`.replace(/[^a-zA-Z0-9.!@$%^&*()\-_/]/g, '_');
         
+        let stringValue: string;
         if (Array.isArray(value)) {
           // Convert arrays (like tags) to comma-separated strings
-          properties[sanitizedKey] = value.join(', ');
+          stringValue = value.join(', ');
         } else {
-          properties[sanitizedKey] = String(value);
+          stringValue = String(value);
+        }
+        
+        // Google Drive properties are limited to 124 bytes total (key + value)
+        // Calculate available space for value (subtract key length and some buffer)
+        const keyBytes = Buffer.byteLength(sanitizedKey, 'utf8');
+        const maxValueBytes = 120 - keyBytes; // Leave 4 bytes buffer
+        
+        if (Buffer.byteLength(stringValue, 'utf8') <= maxValueBytes) {
+          // Value fits in one property
+          properties[sanitizedKey] = stringValue;
+        } else {
+          // Split long values into multiple properties
+          let remaining = stringValue;
+          let partIndex = 1;
+          
+          while (remaining.length > 0) {
+            const partKey = `${sanitizedKey}_${partIndex}`;
+            const partKeyBytes = Buffer.byteLength(partKey, 'utf8');
+            const maxPartValueBytes = 120 - partKeyBytes;
+            
+            // Find a safe cut point that doesn't exceed byte limit
+            let cutPoint = remaining.length;
+            let testValue = remaining;
+            
+            while (Buffer.byteLength(testValue, 'utf8') > maxPartValueBytes && cutPoint > 0) {
+              cutPoint = Math.floor(cutPoint * 0.8); // Reduce by 20% each time
+              testValue = remaining.substring(0, cutPoint);
+            }
+            
+            if (cutPoint === 0) {
+              // Even a single character is too long, skip this part
+              break;
+            }
+            
+            properties[partKey] = testValue;
+            remaining = remaining.substring(cutPoint);
+            partIndex++;
+            
+            // Limit to prevent too many parts
+            if (partIndex > 5) break;
+          }
         }
       });
 
-      // Add a timestamp for when metadata was generated
-      properties['AI_Generated_At'] = new Date().toISOString();
-      properties['AI_Generated_By'] = 'Metadata_Enhancement_Application';
+      // Add a timestamp for when metadata was generated (ensure it fits in 124 bytes)
+      const timestamp = new Date().toISOString();
+      const timestampKey = 'AI_Generated_At';
+      if (Buffer.byteLength(timestampKey + timestamp, 'utf8') <= 120) {
+        properties[timestampKey] = timestamp;
+      }
+      
+      // Add source application (ensure it fits in 124 bytes)
+      const appName = 'MetadataEnhancer';
+      const appKey = 'AI_Generated_By';
+      if (Buffer.byteLength(appKey + appName, 'utf8') <= 120) {
+        properties[appKey] = appName;
+      }
 
       await googleDriveService.updateFileProperties(file.driveId, properties);
       
