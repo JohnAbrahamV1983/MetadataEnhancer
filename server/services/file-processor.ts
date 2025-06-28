@@ -179,17 +179,20 @@ export class FileProcessorService {
       const properties: Record<string, string> = {};
       
       Object.entries(file.aiGeneratedMetadata).forEach(([key, value]) => {
+        // Sanitize the key to only contain allowed characters for Google Drive
+        const sanitizedKey = `AI_${key}`.replace(/[^a-zA-Z0-9.!@$%^&*()\-_/]/g, '_');
+        
         if (Array.isArray(value)) {
           // Convert arrays (like tags) to comma-separated strings
-          properties[`AI_${key}`] = value.join(', ');
+          properties[sanitizedKey] = value.join(', ');
         } else {
-          properties[`AI_${key}`] = String(value);
+          properties[sanitizedKey] = String(value);
         }
       });
 
       // Add a timestamp for when metadata was generated
       properties['AI_Generated_At'] = new Date().toISOString();
-      properties['AI_Generated_By'] = 'Metadata Enhancement Application';
+      properties['AI_Generated_By'] = 'Metadata_Enhancement_Application';
 
       await googleDriveService.updateFileProperties(file.driveId, properties);
       
