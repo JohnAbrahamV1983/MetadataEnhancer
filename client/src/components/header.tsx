@@ -214,7 +214,7 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <Cloud className="text-primary text-xl" />
-            <h1 className="text-xl font-semibold text-foreground">Drive Metadata Manager</h1>
+            <h1 className="text-xl font-semibold text-foreground">Metadata Enhancer</h1>
           </div>
         </div>
         

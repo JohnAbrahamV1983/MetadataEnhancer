@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a full-stack web application built for Google Drive file metadata processing and management. The application allows users to connect to their Google Drive, browse files, and automatically generate metadata using AI (OpenAI) with customizable templates. It features a modern React frontend with a Node.js/Express backend, PostgreSQL database integration, and comprehensive file processing capabilities.
+This is a full-stack web application called "Metadata Enhancer" built for Google Drive file metadata processing and management. The application allows users to connect to their Google Drive, browse files, and automatically generate metadata using AI (OpenAI) with customizable templates. It features a modern React frontend with a Node.js/Express backend, PostgreSQL database integration, and comprehensive file processing capabilities.
 
 ## System Architecture
 
@@ -105,6 +105,7 @@ This is a full-stack web application built for Google Drive file metadata proces
 Changelog:
 - June 28, 2025. Initial setup
 - June 28, 2025. Enhanced folder picker with Windows-like browser interface
+- June 28, 2025. Renamed application from "Drive Metadata Manager" to "Metadata Enhancer"
 ```
 
 ## User Preferences
