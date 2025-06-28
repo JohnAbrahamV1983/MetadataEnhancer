@@ -394,6 +394,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Verify exported metadata by retrieving it from Google Drive
+  app.get("/api/verify/file/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const file = await storage.getDriveFile(parseInt(id));
+      
+      if (!file) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      // Get metadata directly from Google Drive
+      const driveMetadata = await googleDriveService.getFileMetadata(file.driveId);
+      
+      res.json({ 
+        fileName: file.name,
+        driveProperties: driveMetadata.properties || {},
+        exportedMetadata: file.aiGeneratedMetadata 
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
