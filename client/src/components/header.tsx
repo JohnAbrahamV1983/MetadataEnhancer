@@ -17,7 +17,6 @@ interface HeaderProps {
 
 export default function Header({ currentFolderId, onFolderChange, onStartProcessing }: HeaderProps) {
   const [showFolderDialog, setShowFolderDialog] = useState(false);
-  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -115,7 +114,7 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
         title: "Template uploaded",
         description: "Metadata template has been created successfully.",
       });
-      setShowTemplateDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/templates"] });
     },
     onError: (error: any) => {
       toast({
@@ -149,10 +148,23 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
     },
   });
 
-  const handleTemplateUpload = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Generate template name from file name
+    const fileName = file.name.replace(/\.(csv|xlsx)$/i, '');
+    const templateName = fileName.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+    const formData = new FormData();
+    formData.append('name', templateName);
+    formData.append('description', `Template imported from ${file.name}`);
+    formData.append('file', file);
+
     uploadTemplateMutation.mutate(formData);
+    
+    // Reset the input
+    event.target.value = '';
   };
 
   return (
@@ -255,36 +267,22 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
             </div>
             
             <div className="flex items-center space-x-3">
-              <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload CSV Template
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Upload Metadata Template</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleTemplateUpload} className="space-y-4">
-                    <div>
-                      <Label htmlFor="name">Template Name</Label>
-                      <Input id="name" name="name" placeholder="Enter template name" required />
-                    </div>
-                    <div>
-                      <Label htmlFor="description">Description</Label>
-                      <Input id="description" name="description" placeholder="Enter description" />
-                    </div>
-                    <div>
-                      <Label htmlFor="file">CSV/Excel File</Label>
-                      <Input id="file" name="file" type="file" accept=".csv,.xlsx" required />
-                    </div>
-                    <Button type="submit" disabled={uploadTemplateMutation.isPending}>
-                      {uploadTemplateMutation.isPending ? "Uploading..." : "Upload Template"}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <input
+                type="file"
+                accept=".csv,.xlsx"
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+                id="csv-file-input"
+              />
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => document.getElementById('csv-file-input')?.click()}
+                disabled={uploadTemplateMutation.isPending}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {uploadTemplateMutation.isPending ? "Uploading..." : "Upload CSV Template"}
+              </Button>
               
               <Button 
                 onClick={onStartProcessing}
