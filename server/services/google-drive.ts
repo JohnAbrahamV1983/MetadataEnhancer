@@ -26,10 +26,16 @@ export class GoogleDriveService {
   private drive: any;
 
   constructor() {
+    // Fix double slash in redirect URI by ensuring proper format
+    let redirectUri = process.env.GOOGLE_REDIRECT_URI || '';
+    if (redirectUri.includes('//api/')) {
+      redirectUri = redirectUri.replace('//api/', '/api/');
+    }
+    
     this.auth = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
+      redirectUri
     );
 
     // Set credentials if refresh token is available
