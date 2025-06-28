@@ -16,7 +16,7 @@ interface ProcessingModalProps {
 }
 
 export default function ProcessingModal({ isOpen, onClose, folderId }: ProcessingModalProps) {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("default");
   const [currentJobId, setCurrentJobId] = useState<number | null>(null);
   const { toast } = useToast();
 
@@ -34,7 +34,7 @@ export default function ProcessingModal({ isOpen, onClose, folderId }: Processin
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/process/batch", {
         folderId,
-        templateId: selectedTemplateId ? parseInt(selectedTemplateId) : undefined,
+        templateId: selectedTemplateId !== "default" ? parseInt(selectedTemplateId) : undefined,
       });
       return response.json();
     },
@@ -70,7 +70,7 @@ export default function ProcessingModal({ isOpen, onClose, folderId }: Processin
 
   const handleClose = () => {
     setCurrentJobId(null);
-    setSelectedTemplateId("");
+    setSelectedTemplateId("default");
     onClose();
   };
 
@@ -106,7 +106,7 @@ export default function ProcessingModal({ isOpen, onClose, folderId }: Processin
                     <SelectValue placeholder="Select a template or use default" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Default Template</SelectItem>
+                    <SelectItem value="default">Default Template</SelectItem>
                     {templates?.map((template: any) => (
                       <SelectItem key={template.id} value={template.id.toString()}>
                         {template.name}
@@ -114,7 +114,7 @@ export default function ProcessingModal({ isOpen, onClose, folderId }: Processin
                     ))}
                   </SelectContent>
                 </Select>
-                {selectedTemplateId && (
+                {selectedTemplateId !== "default" && (
                   <p className="text-xs text-muted-foreground">
                     Selected template will define the metadata fields to generate.
                   </p>
