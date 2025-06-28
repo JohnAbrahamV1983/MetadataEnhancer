@@ -208,44 +208,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let fields: any[] = [];
 
       if (req.file.mimetype === "text/csv") {
-        // Parse CSV
-        const csvData: any[] = [];
+        // Parse CSV with better handling
         const buffer = req.file.buffer.toString();
+        console.log("CSV content:", buffer.substring(0, 500)); // Debug log
+        
         const lines = buffer.split('\n');
         
-        for (const line of lines) {
-          if (line.trim()) {
-            const [fieldName, fieldDescription, fieldType, options] = line.split(',').map(s => s.trim());
-            if (fieldName && fieldDescription) {
-              fields.push({
-                name: fieldName,
-                description: fieldDescription,
-                type: fieldType || 'text',
-                options: options ? options.split(';').map(o => o.trim()) : undefined
-              });
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          // Simple CSV parsing - handle quoted fields
+          const csvFields = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              csvFields.push(current.trim().replace(/^"/, '').replace(/"$/, ''));
+              current = '';
+            } else {
+              current += char;
             }
+          }
+          csvFields.push(current.trim().replace(/^"/, '').replace(/"$/, ''));
+          
+          const [fieldName, fieldDescription, fieldType, options] = csvFields;
+          console.log(`Line ${i}: [${csvFields.join('] [')}]`); // Debug log
+          
+          if (fieldName && fieldDescription && fieldName !== 'name') { // Skip header row
+            fields.push({
+              name: fieldName,
+              description: fieldDescription,
+              type: fieldType || 'text',
+              options: options ? options.split(';').map(o => o.trim()).filter(o => o) : undefined
+            });
           }
         }
       } else if (req.file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
         // Parse Excel
         const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(worksheet);
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }); // Get raw array data
         
-        for (const row of data as any[]) {
-          if (row.name && row.description) {
-            fields.push({
-              name: row.name,
-              description: row.description,
-              type: row.type || 'text',
-              options: row.options ? row.options.split(';').map((o: string) => o.trim()) : undefined
-            });
+        console.log("Excel data:", JSON.stringify(data.slice(0, 5))); // Debug log
+        
+        for (let i = 1; i < data.length; i++) { // Start from 1 to skip header
+          const row = data[i] as any[];
+          if (row && row.length >= 2) {
+            const [fieldName, fieldDescription, fieldType, options] = row;
+            console.log(`Excel row ${i}: [${row.join('] [')}]`); // Debug log
+            
+            if (fieldName && fieldDescription) {
+              fields.push({
+                name: String(fieldName).trim(),
+                description: String(fieldDescription).trim(),
+                type: fieldType ? String(fieldType).trim() : 'text',
+                options: options ? String(options).split(';').map((o: string) => o.trim()).filter(o => o) : undefined
+              });
+            }
           }
         }
       } else {
         return res.status(400).json({ message: "Unsupported file format. Please upload CSV or Excel file." });
       }
 
+      console.log("Parsed fields:", JSON.stringify(fields, null, 2)); // Debug log
+      
       if (fields.length === 0) {
         return res.status(400).json({ message: "No valid fields found in the uploaded file" });
       }
