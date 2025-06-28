@@ -18,7 +18,7 @@ export default function Dashboard() {
   });
 
   const { data: files, refetch: refetchFiles } = useQuery({
-    queryKey: ["/api/drive/files", currentFolderId],
+    queryKey: [`/api/drive/files/${currentFolderId}`, currentFolderId],
     enabled: !!currentFolderId,
   });
 

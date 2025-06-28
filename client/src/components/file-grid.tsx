@@ -52,7 +52,7 @@ export default function FileGrid({
         title: "Processing started",
         description: "File processing has been initiated.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/drive/files", currentFolderId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/drive/files/${currentFolderId}`, currentFolderId] });
     },
     onError: (error: any) => {
       toast({
