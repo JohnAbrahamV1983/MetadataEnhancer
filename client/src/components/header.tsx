@@ -23,10 +23,15 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
   // Check authentication status
   const { data: authStatus, refetch: refetchAuthStatus } = useQuery({
     queryKey: ["/api/auth/status"],
-    refetchInterval: 5000, // Check every 5 seconds
+    refetchInterval: 2000, // Check every 2 seconds
+    staleTime: 0, // Always consider stale
+    gcTime: 0, // Don't cache (TanStack Query v5 syntax)
   });
 
   const isConnected = authStatus?.isAuthenticated || false;
+  
+  // Debug logging
+  console.log('Auth Status:', authStatus, 'Is Connected:', isConnected);
 
   const { data: folders } = useQuery({
     queryKey: ["/api/drive/folders"],
