@@ -55,6 +55,11 @@ export class GoogleDriveService {
     });
   }
 
+  isAuthenticated(): boolean {
+    const credentials = this.auth.credentials;
+    return !!(credentials && (credentials.access_token || credentials.refresh_token));
+  }
+
   async setAuthToken(code: string): Promise<void> {
     const { tokens } = await this.auth.getToken(code);
     this.auth.setCredentials(tokens);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -16,10 +16,17 @@ interface HeaderProps {
 }
 
 export default function Header({ currentFolderId, onFolderChange, onStartProcessing }: HeaderProps) {
-  const [isConnected, setIsConnected] = useState(false);
   const [showFolderDialog, setShowFolderDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const { toast } = useToast();
+
+  // Check authentication status
+  const { data: authStatus, refetch: refetchAuthStatus } = useQuery({
+    queryKey: ["/api/auth/status"],
+    refetchInterval: 5000, // Check every 5 seconds
+  });
+
+  const isConnected = authStatus?.isAuthenticated || false;
 
   const { data: folders } = useQuery({
     queryKey: ["/api/drive/folders"],
@@ -30,23 +37,46 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
     queryKey: ["/api/templates"],
   });
 
+  // Listen for OAuth callback messages
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+        refetchAuthStatus();
+        toast({
+          title: "Connected to Google Drive",
+          description: "You can now browse and process your files.",
+        });
+      } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
+        toast({
+          title: "Connection failed",
+          description: event.data.error || "Failed to connect to Google Drive",
+          variant: "destructive",
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [refetchAuthStatus, toast]);
+
   const connectMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("GET", "/api/auth/google/url");
       const { authUrl } = await response.json();
       
       // Open auth URL in new window
-      window.open(authUrl, "_blank", "width=500,height=600");
+      const popup = window.open(authUrl, "_blank", "width=500,height=600");
       
-      // For demo purposes, we'll simulate connection
-      setIsConnected(true);
+      // Monitor popup for closure
+      const checkClosed = setInterval(() => {
+        if (popup?.closed) {
+          clearInterval(checkClosed);
+          // Give a moment for the message to arrive
+          setTimeout(() => refetchAuthStatus(), 500);
+        }
+      }, 1000);
+      
       return { success: true };
-    },
-    onSuccess: () => {
-      toast({
-        title: "Connected to Google Drive",
-        description: "You can now browse and process your files.",
-      });
     },
     onError: (error: any) => {
       toast({

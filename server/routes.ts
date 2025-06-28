@@ -21,6 +21,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check authentication status
+  app.get("/api/auth/status", async (req, res) => {
+    try {
+      const isAuthenticated = googleDriveService.isAuthenticated();
+      res.json({ isAuthenticated });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Handle Google OAuth callback (GET request from redirect)
+  app.get("/api/auth/google/callback", async (req, res) => {
+    try {
+      const { code } = req.query;
+      if (!code) {
+        return res.status(400).send('Authorization code missing');
+      }
+      
+      await googleDriveService.setAuthToken(code as string);
+      
+      // Redirect back to the main app with success
+      res.send(`
+        <script>
+          window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS' }, '*');
+          window.close();
+        </script>
+      `);
+    } catch (error) {
+      res.send(`
+        <script>
+          window.opener.postMessage({ type: 'GOOGLE_AUTH_ERROR', error: '${error.message}' }, '*');
+          window.close();
+        </script>
+      `);
+    }
+  });
+
+  // Also keep POST endpoint for manual code submission
   app.post("/api/auth/google/callback", async (req, res) => {
     try {
       const { code } = req.body;
