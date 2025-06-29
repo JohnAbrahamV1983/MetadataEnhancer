@@ -525,6 +525,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Smart search endpoint
+  app.post("/api/search", async (req, res) => {
+    try {
+      const { query, folderId } = req.body;
+      
+      if (!query || typeof query !== "string") {
+        return res.status(400).json({ message: "Search query is required" });
+      }
+
+      // Get all files in the specified folder
+      const allFiles = await storage.getDriveFilesByFolder(folderId || "root");
+      
+      // Filter files that have been processed and have AI metadata
+      const processedFiles = allFiles.filter(file => 
+        file.status === "processed" && 
+        file.aiGeneratedMetadata
+      );
+
+      // Perform search across all metadata fields
+      const searchTerms = query.toLowerCase().split(" ");
+      const searchResults = processedFiles.filter(file => {
+        const searchableContent = [
+          file.name.toLowerCase(),
+          JSON.stringify(file.aiGeneratedMetadata).toLowerCase(),
+          file.type.toLowerCase(),
+          file.mimeType.toLowerCase()
+        ].join(" ");
+
+        return searchTerms.some(term => searchableContent.includes(term));
+      });
+
+      // Sort by relevance (simple scoring based on matches)
+      const scoredResults = searchResults.map(file => {
+        const searchableContent = [
+          file.name.toLowerCase(),
+          JSON.stringify(file.aiGeneratedMetadata).toLowerCase()
+        ].join(" ");
+        
+        const score = searchTerms.reduce((acc, term) => {
+          const matches = (searchableContent.match(new RegExp(term, "g")) || []).length;
+          return acc + matches;
+        }, 0);
+        
+        return { file, score };
+      });
+
+      // Sort by score and return files
+      const sortedResults = scoredResults
+        .sort((a, b) => b.score - a.score)
+        .map(result => result.file);
+
+      res.json(sortedResults);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

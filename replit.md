@@ -54,6 +54,7 @@ This is a full-stack web application called "Metadata Enhancer" built for Google
 - File grid with list/grid view modes
 - Metadata panel for viewing and editing file metadata
 - Processing modal with progress indicators
+- Smart search interface for finding images by AI-generated metadata
 - Responsive design with mobile support
 
 ## Data Flow
@@ -106,6 +107,7 @@ Changelog:
 - June 28, 2025. Initial setup
 - June 28, 2025. Enhanced folder picker with Windows-like browser interface
 - June 28, 2025. Renamed application from "Drive Metadata Manager" to "Metadata Enhancer"
+- June 28, 2025. Added Smart Search feature with dedicated search page and navigation
 ```
 
 ## User Preferences
