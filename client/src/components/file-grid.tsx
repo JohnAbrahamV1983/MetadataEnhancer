@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +21,8 @@ import {
   PauseCircle,
   AlertCircle,
   RefreshCw,
-  Folder
+  Folder,
+  CloudUpload
 } from "lucide-react";
 
 interface FileGridProps {
@@ -40,6 +42,7 @@ export default function FileGrid({
 }: FileGridProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [filter, setFilter] = useState("all");
+  const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
   const { toast } = useToast();
 
   const processFileMutation = useMutation({
@@ -57,6 +60,27 @@ export default function FileGrid({
     onError: (error: any) => {
       toast({
         title: "Processing failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const bulkExportMutation = useMutation({
+    mutationFn: async (fileIds: number[]) => {
+      const response = await apiRequest("POST", "/api/export/bulk", { fileIds });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Bulk export completed",
+        description: "Selected files have been exported to Google Drive.",
+      });
+      setSelectedFiles(new Set());
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Bulk export failed",
         description: error.message,
         variant: "destructive",
       });
@@ -148,6 +172,31 @@ export default function FileGrid({
     return true;
   });
 
+  const processedImages = files.filter(f => f.status === "processed" && f.type === "image");
+  
+  const handleFileSelection = (fileId: number, checked: boolean) => {
+    const newSelected = new Set(selectedFiles);
+    if (checked) {
+      newSelected.add(fileId);
+    } else {
+      newSelected.delete(fileId);
+    }
+    setSelectedFiles(newSelected);
+  };
+
+  const handleSelectAllProcessed = () => {
+    if (selectedFiles.size === processedImages.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(processedImages.map(f => f.id)));
+    }
+  };
+
+  const handleBulkExport = () => {
+    const fileIds = Array.from(selectedFiles);
+    bulkExportMutation.mutate(fileIds);
+  };
+
   const stats = {
     total: files.length,
     processed: files.filter(f => f.status === "processed").length,
@@ -184,6 +233,28 @@ export default function FileGrid({
             </Button>
           </div>
           <div className="flex items-center space-x-3">
+            {processedImages.length > 0 && (
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAllProcessed}
+                  disabled={bulkExportMutation.isPending}
+                >
+                  {selectedFiles.size === processedImages.length ? "Deselect All" : "Select All Processed"}
+                </Button>
+                {selectedFiles.size > 0 && (
+                  <Button
+                    size="sm"
+                    onClick={handleBulkExport}
+                    disabled={bulkExportMutation.isPending}
+                  >
+                    <CloudUpload className="h-4 w-4 mr-2" />
+                    {bulkExportMutation.isPending ? "Exporting..." : `Export ${selectedFiles.size} to Drive`}
+                  </Button>
+                )}
+              </div>
+            )}
             <div className="flex items-center space-x-1 bg-muted rounded-lg p-1">
               <Button
                 variant={viewMode === "grid" ? "default" : "ghost"}
@@ -235,10 +306,11 @@ export default function FileGrid({
             <Card className="mb-6">
               <CardContent className="pt-6">
                 <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
-                  <div className="col-span-5">File Name</div>
+                  <div className="col-span-4">File Name</div>
                   <div className="col-span-2">Type</div>
                   <div className="col-span-2">Size</div>
                   <div className="col-span-2">Status</div>
+                  <div className="col-span-1">Select</div>
                   <div className="col-span-1">Actions</div>
                 </div>
               </CardContent>
@@ -255,7 +327,7 @@ export default function FileGrid({
                     onClick={() => onFileSelect(file)}
                   >
                     <div className="grid grid-cols-12 gap-4 items-center">
-                      <div className="col-span-5 flex items-center space-x-3">
+                      <div className="col-span-4 flex items-center space-x-3">
                         <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
                           {getFileIcon(file, false)}
                         </div>
@@ -274,6 +346,15 @@ export default function FileGrid({
                       </div>
                       <div className="col-span-2">
                         {getStatusBadge(file.status)}
+                      </div>
+                      <div className="col-span-1">
+                        {file.status === "processed" && file.type === "image" && (
+                          <Checkbox
+                            checked={selectedFiles.has(file.id)}
+                            onCheckedChange={(checked) => handleFileSelection(file.id, checked as boolean)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
                       </div>
                       <div className="col-span-1">
                         <Button 
@@ -309,7 +390,7 @@ export default function FileGrid({
                 onClick={() => onFileSelect(file)}
               >
                 <CardContent className="p-4">
-                  <div className="aspect-square mb-3 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                  <div className="aspect-square mb-3 bg-muted rounded-lg flex items-center justify-center overflow-hidden relative">
                     {file.type === 'image' && file.thumbnailLink ? (
                       <img 
                         src={file.thumbnailLink} 
@@ -319,6 +400,16 @@ export default function FileGrid({
                     ) : (
                       <div className="w-16 h-16">
                         {getFileIcon(file, true)}
+                      </div>
+                    )}
+                    {file.status === "processed" && file.type === "image" && (
+                      <div className="absolute top-2 right-2">
+                        <Checkbox
+                          checked={selectedFiles.has(file.id)}
+                          onCheckedChange={(checked) => handleFileSelection(file.id, checked as boolean)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="bg-white/80 border-2"
+                        />
                       </div>
                     )}
                   </div>

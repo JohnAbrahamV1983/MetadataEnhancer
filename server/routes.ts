@@ -58,9 +58,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!code) {
         return res.status(400).send('Authorization code missing');
       }
-      
+
       await googleDriveService.setAuthToken(code as string);
-      
+
       // Redirect back to the main app with success
       res.send(`
         <script>
@@ -104,15 +104,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/drive/files/:folderId", async (req, res) => {
     try {
       const { folderId } = req.params;
-      
+
       // First get files from Google Drive
       const driveFiles = await googleDriveService.listFiles(folderId);
-      
+
       // Store/update files in our database and return the stored versions
       const storedFiles = [];
       for (const driveFile of driveFiles) {
         let stored = await storage.getDriveFileByDriveId(driveFile.id);
-        
+
         if (!stored) {
           // Create new file record
           const fileData = {
@@ -136,10 +136,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const validatedData = insertDriveFileSchema.parse(fileData);
           stored = await storage.createDriveFile(validatedData);
         }
-        
+
         storedFiles.push(stored);
       }
-      
+
       res.json(storedFiles);
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -150,11 +150,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const file = await storage.getDriveFile(parseInt(id));
-      
+
       if (!file) {
         return res.status(404).json({ message: "File not found" });
       }
-      
+
       res.json(file);
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -165,13 +165,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const updates = req.body;
-      
+
       const updated = await storage.updateDriveFile(parseInt(id), updates);
-      
+
       if (!updated) {
         return res.status(404).json({ message: "File not found" });
       }
-      
+
       res.json(updated);
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -211,18 +211,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Parse CSV with better handling
         const buffer = req.file.buffer.toString();
         console.log("CSV content:", buffer.substring(0, 500)); // Debug log
-        
+
         const lines = buffer.split('\n');
-        
+
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
-          
+
           // Simple CSV parsing - handle quoted fields
           const csvFields = [];
           let current = '';
           let inQuotes = false;
-          
+
           for (let j = 0; j < line.length; j++) {
             const char = line[j];
             if (char === '"') {
@@ -235,10 +235,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           csvFields.push(current.trim().replace(/^"/, '').replace(/"$/, ''));
-          
+
           const [fieldName, fieldDescription, fieldType, options] = csvFields;
           console.log(`Line ${i}: [${csvFields.join('] [')}]`); // Debug log
-          
+
           if (fieldName && fieldDescription && fieldName !== 'name') { // Skip header row
             fields.push({
               name: fieldName,
@@ -253,15 +253,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }); // Get raw array data
-        
+
         console.log("Excel data:", JSON.stringify(data.slice(0, 5))); // Debug log
-        
+
         for (let i = 1; i < data.length; i++) { // Start from 1 to skip header
           const row = data[i] as any[];
           if (row && row.length >= 2) {
             const [fieldName, fieldDescription, fieldType, options] = row;
             console.log(`Excel row ${i}: [${row.join('] [')}]`); // Debug log
-            
+
             if (fieldName && fieldDescription) {
               fields.push({
                 name: String(fieldName).trim(),
@@ -277,7 +277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log("Parsed fields:", JSON.stringify(fields, null, 2)); // Debug log
-      
+
       if (fields.length === 0) {
         return res.status(400).json({ message: "No valid fields found in the uploaded file" });
       }
@@ -290,7 +290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = insertMetadataTemplateSchema.parse(templateData);
       const template = await storage.createMetadataTemplate(validatedData);
-      
+
       res.json(template);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -302,19 +302,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { templateId } = req.body;
-      
+
       const file = await storage.getDriveFile(parseInt(id));
       if (!file) {
         return res.status(404).json({ message: "File not found" });
       }
-      
+
       const template = templateId ? await storage.getMetadataTemplate(templateId) : undefined;
-      
+
       // Process file in background
       fileProcessorService.processFile(file, template).catch(error => {
         console.error("File processing failed:", error);
       });
-      
+
       res.json({ message: "Processing started" });
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -324,10 +324,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/process/batch", async (req, res) => {
     try {
       const { folderId, templateId } = req.body;
-      
+
       // Start batch processing in background
       const jobId = await fileProcessorService.processBatch(folderId, templateId);
-      
+
       res.json({ jobId, message: "Batch processing started" });
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -348,11 +348,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const job = await storage.getProcessingJob(parseInt(id));
-      
+
       if (!job) {
         return res.status(404).json({ message: "Job not found" });
       }
-      
+
       res.json(job);
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -364,11 +364,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const file = await storage.getDriveFile(parseInt(id));
-      
+
       if (!file) {
         return res.status(404).json({ message: "File not found" });
       }
-      
+
       if (!file.aiGeneratedMetadata) {
         return res.status(400).json({ message: "No AI-generated metadata to export" });
       }
@@ -384,7 +384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { folderId } = req.params;
       const exportedCount = await fileProcessorService.exportAllMetadataToDrive(folderId);
-      
+
       res.json({ 
         message: `Exported metadata for ${exportedCount} files to Google Drive`,
         exportedCount 
@@ -399,14 +399,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const file = await storage.getDriveFile(parseInt(id));
-      
+
       if (!file) {
         return res.status(404).json({ message: "File not found" });
       }
 
       // Get metadata directly from Google Drive
       const driveMetadata = await googleDriveService.getFileMetadata(file.driveId);
-      
+
       res.json({ 
         fileName: file.name,
         driveProperties: driveMetadata.properties || {},
