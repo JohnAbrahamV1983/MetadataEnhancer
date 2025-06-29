@@ -682,27 +682,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { folderId } = req.params;
       
+      // Recursive function to get all files from folder and subfolders (same as search)
+      const getAllFilesRecursive = async (targetFolderId: string): Promise<any[]> => {
+        const allFiles: any[] = [];
+        
+        // Get direct files in this folder
+        const directFiles = await storage.getDriveFilesByFolder(targetFolderId);
+        allFiles.push(...directFiles);
+        
+        // Get all subfolders and recursively search them
+        try {
+          const subfolders = await googleDriveService.listFolders(targetFolderId);
+          for (const subfolder of subfolders) {
+            const subfolderFiles = await getAllFilesRecursive(subfolder.id);
+            allFiles.push(...subfolderFiles);
+          }
+        } catch (error) {
+          // Continue if we can't access some subfolders
+          console.log(`Could not access subfolders for ${targetFolderId}`);
+        }
+        
+        return allFiles;
+      };
+      
       // Get all files recursively from the specified folder
-      const allFiles = await getAllFilesRecursively(folderId || 'root');
+      const allFiles = await getAllFilesRecursive(folderId || 'root');
       
       // Calculate statistics
       const totalFiles = allFiles.length;
-      const filesWithAI = allFiles.filter(file => 
+      const filesWithAI = allFiles.filter((file: any) => 
         file.aiGeneratedMetadata && Object.keys(file.aiGeneratedMetadata).length > 0
       );
       const filesWithAICount = filesWithAI.length;
       
-      // Calculate field statistics
+      // Calculate field statistics by examining actual AI fields that exist
       let totalPossibleFields = 0;
       let totalFilledFields = 0;
       
-      // Common AI metadata fields we expect
-      const expectedFields = ['title', 'description', 'tags', 'category', 'subject', 'location', 'mood', 'colors'];
+      // Collect all unique AI field names from all files
+      const allAIFields = new Set<string>();
+      filesWithAI.forEach((file: any) => {
+        const metadata = file.aiGeneratedMetadata || {};
+        Object.keys(metadata).forEach(key => allAIFields.add(key));
+      });
       
-      filesWithAI.forEach(file => {
+      // Calculate field statistics based on actual fields that exist
+      filesWithAI.forEach((file: any) => {
         const metadata = file.aiGeneratedMetadata || {};
         
-        expectedFields.forEach(fieldName => {
+        allAIFields.forEach(fieldName => {
           totalPossibleFields++;
           
           const fieldValue = metadata[fieldName];
@@ -724,12 +752,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filesWithAIPercentage: totalFiles > 0 ? Math.round((filesWithAICount / totalFiles) * 100) : 0,
         totalPossibleFields,
         totalFilledFields,
-        filledFieldsPercentage: totalPossibleFields > 0 ? Math.round((totalFilledFields / totalPossibleFields) * 100) : 0
+        filledFieldsPercentage: totalPossibleFields > 0 ? Math.round((totalFilledFields / totalPossibleFields) * 100) : 0,
+        uniqueAIFields: Array.from(allAIFields)
       };
       
       res.json(analytics);
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: (error as Error).message });
     }
   });
 
