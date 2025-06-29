@@ -682,11 +682,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { folderId } = req.params;
       
-      // Recursive function to get all files from folder and subfolders (same as search)
+      // First, let's ensure we have files in our database by calling the files endpoint
+      // This will populate the database with files from Google Drive if they don't exist
+      const response = await fetch(`http://localhost:5000/api/drive/files/${folderId}`);
+      if (response.ok) {
+        const driveFiles = await response.json();
+        console.log(`Found ${driveFiles.length} files in Google Drive for folder ${folderId}`);
+      }
+      
+      // Recursive function to get all files from folder and subfolders
       const getAllFilesRecursive = async (targetFolderId: string): Promise<any[]> => {
         const allFiles: any[] = [];
         
-        // Get direct files in this folder
+        // Get direct files in this folder from our database
         const directFiles = await storage.getDriveFilesByFolder(targetFolderId);
         allFiles.push(...directFiles);
         
@@ -694,6 +702,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const subfolders = await googleDriveService.listFolders(targetFolderId);
           for (const subfolder of subfolders) {
+            // Also populate each subfolder
+            try {
+              const subResponse = await fetch(`http://localhost:5000/api/drive/files/${subfolder.id}`);
+              if (subResponse.ok) {
+                const subDriveFiles = await subResponse.json();
+                console.log(`Found ${subDriveFiles.length} files in subfolder ${subfolder.name}`);
+              }
+            } catch (error) {
+              console.log(`Could not populate subfolder ${subfolder.name}`);
+            }
+            
             const subfolderFiles = await getAllFilesRecursive(subfolder.id);
             allFiles.push(...subfolderFiles);
           }
@@ -709,46 +728,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allFiles = await getAllFilesRecursive(folderId || 'root');
       
       // Debug logging
-      console.log(`Analytics for folder ${folderId}: Found ${allFiles.length} total files`);
+      console.log(`Analytics for folder ${folderId}: Found ${allFiles.length} total files in database`);
       
       // Calculate statistics
       const totalFiles = allFiles.length;
       
-      // More robust check for files with AI metadata
+      // Filter files that have AI metadata
       const filesWithAI = allFiles.filter((file: any) => {
         const hasAIMetadata = file.aiGeneratedMetadata && 
           typeof file.aiGeneratedMetadata === 'object' && 
           Object.keys(file.aiGeneratedMetadata).length > 0;
         
-        // Also check if file status is 'processed' as another indicator
         const isProcessed = file.status === 'processed';
         
         console.log(`File ${file.name}: hasAIMetadata=${hasAIMetadata}, status=${file.status}, aiGeneratedMetadata=${JSON.stringify(file.aiGeneratedMetadata)}`);
         
-        return hasAIMetadata || isProcessed;
+        return hasAIMetadata;
       });
       
       const filesWithAICount = filesWithAI.length;
       console.log(`Files with AI: ${filesWithAICount}`);
       
-      // Calculate field statistics by examining actual AI fields that exist
+      // Calculate field statistics
       let totalPossibleFields = 0;
       let totalFilledFields = 0;
       
-      // Collect all unique AI field names from all files
+      // Collect all unique AI field names from files with AI metadata
       const allAIFields = new Set<string>();
       filesWithAI.forEach((file: any) => {
-        const metadata = file.aiGeneratedMetadata || {};
-        Object.keys(metadata).forEach(key => allAIFields.add(key));
+        if (file.aiGeneratedMetadata) {
+          Object.keys(file.aiGeneratedMetadata).forEach(key => allAIFields.add(key));
+        }
       });
       
-      // If no AI fields exist yet, use a default set of expected fields for calculation
-      if (allAIFields.size === 0 && filesWithAI.length > 0) {
-        ['description', 'tags', 'category', 'colors', 'objects'].forEach(field => allAIFields.add(field));
-      }
-      
       // Calculate field statistics based on actual fields that exist
-      if (allAIFields.size > 0) {
+      if (filesWithAI.length > 0 && allAIFields.size > 0) {
         filesWithAI.forEach((file: any) => {
           const metadata = file.aiGeneratedMetadata || {};
           
