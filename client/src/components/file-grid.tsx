@@ -417,8 +417,10 @@ export default function FileGrid({
                     <p className="font-medium text-sm text-foreground truncate" title={file.name}>
                       {file.name}
                     </p>
-                    <div className="flex justify-between items-center">
-                      {getTypeBadge(file.type)}
+                    <div className="flex justify-between items-center gap-1">
+                      <div className="flex-shrink-0">
+                        {getTypeBadge(file.type)}
+                      </div>
                       <Button 
                         variant="ghost" 
                         size="sm"
@@ -429,14 +431,16 @@ export default function FileGrid({
                           }
                         }}
                         disabled={file.status === "processing" || processFileMutation.isPending}
-                        className="h-6 w-6 p-0"
+                        className="h-6 w-6 p-0 flex-shrink-0"
                       >
                         <MoreVertical className="h-3 w-3" />
                       </Button>
                     </div>
-                    <div className="flex justify-between items-center text-xs text-muted-foreground">
-                      <span>{formatFileSize(file.size)}</span>
-                      {getStatusBadge(file.status)}
+                    <div className="flex justify-between items-center text-xs text-muted-foreground gap-1">
+                      <span className="truncate flex-1">{formatFileSize(file.size)}</span>
+                      <div className="flex-shrink-0">
+                        {getStatusBadge(file.status)}
+                      </div>
                     </div>
                   </div>
                 </CardContent>
