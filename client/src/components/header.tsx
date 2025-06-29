@@ -163,7 +163,7 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
     onError: (error: any) => {
       toast({
         title: "Export failed",
-        description: error.message,
+        description: error.message || "An error occurred during bulk export",
         variant: "destructive",
       });
     },

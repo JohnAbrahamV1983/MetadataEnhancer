@@ -71,10 +71,10 @@ export default function FileGrid({
       const response = await apiRequest("POST", "/api/export/bulk", { fileIds });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Bulk export completed",
-        description: "Selected files have been exported to Google Drive.",
+        description: data.message || "Selected files have been exported to Google Drive.",
       });
       setSelectedFiles(new Set());
     },

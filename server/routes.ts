@@ -417,6 +417,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk export multiple files
+  app.post("/api/export/bulk", async (req, res) => {
+    try {
+      const { fileIds } = req.body;
+      
+      if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+        return res.status(400).json({ message: "No file IDs provided for bulk export" });
+      }
+
+      let exportedCount = 0;
+      const errors = [];
+
+      for (const fileId of fileIds) {
+        try {
+          const file = await storage.getDriveFile(fileId);
+          if (file && file.aiGeneratedMetadata) {
+            await fileProcessorService.exportMetadataToDrive(file);
+            exportedCount++;
+          }
+        } catch (error) {
+          errors.push(`Failed to export file ${fileId}: ${error.message}`);
+        }
+      }
+
+      res.json({ 
+        message: `Bulk export completed. Exported ${exportedCount} files.${errors.length > 0 ? ` ${errors.length} files failed.` : ''}`,
+        exportedCount,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
