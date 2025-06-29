@@ -310,8 +310,8 @@ export default function FileGrid({
                   <div className="col-span-2">Type</div>
                   <div className="col-span-2">Size</div>
                   <div className="col-span-2">Status</div>
-                  <div className="col-span-1">Select</div>
-                  <div className="col-span-1">Actions</div>
+                  <div className="col-span-1 text-center">Select</div>
+                  <div className="col-span-1 text-center">Actions</div>
                 </div>
               </CardContent>
             </Card>
@@ -347,7 +347,7 @@ export default function FileGrid({
                       <div className="col-span-2">
                         {getStatusBadge(file.status)}
                       </div>
-                      <div className="col-span-1">
+                      <div className="col-span-1 flex justify-center">
                         {file.status === "processed" && file.type === "image" && (
                           <Checkbox
                             checked={selectedFiles.has(file.id)}
@@ -356,7 +356,7 @@ export default function FileGrid({
                           />
                         )}
                       </div>
-                      <div className="col-span-1">
+                      <div className="col-span-1 flex justify-center">
                         <Button 
                           variant="ghost" 
                           size="sm"
@@ -403,12 +403,12 @@ export default function FileGrid({
                       </div>
                     )}
                     {file.status === "processed" && file.type === "image" && (
-                      <div className="absolute top-2 right-2">
+                      <div className="absolute top-2 left-2 z-10">
                         <Checkbox
                           checked={selectedFiles.has(file.id)}
                           onCheckedChange={(checked) => handleFileSelection(file.id, checked as boolean)}
                           onClick={(e) => e.stopPropagation()}
-                          className="bg-white/80 border-2"
+                          className="bg-white/90 border-2 shadow-sm"
                         />
                       </div>
                     )}
