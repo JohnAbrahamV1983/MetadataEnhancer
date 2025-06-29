@@ -469,14 +469,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let exportedCount = 0;
+      let skippedCount = 0;
       const errors = [];
 
       for (const fileId of fileIds) {
         try {
           const file = await storage.getDriveFile(fileId);
           if (file && file.aiGeneratedMetadata) {
-            await fileProcessorService.exportMetadataToDrive(file);
-            exportedCount++;
+            // Get existing metadata to check for changes
+            const existingDriveMetadata = await googleDriveService.getFileMetadata(file.driveId);
+            const existingProperties = existingDriveMetadata.properties || {};
+            
+            // Convert AI metadata for comparison
+            const newProperties: Record<string, string> = {};
+            Object.entries(file.aiGeneratedMetadata).forEach(([key, value]) => {
+              const sanitizedKey = `AI_${key}`.replace(/[^a-zA-Z0-9.!@$%^&*()\-_/]/g, '_');
+              let stringValue: string;
+              if (Array.isArray(value)) {
+                stringValue = value.join(', ');
+              } else {
+                stringValue = String(value);
+              }
+              newProperties[sanitizedKey] = stringValue;
+            });
+            
+            // Check for changes
+            let hasChanges = false;
+            for (const [key, value] of Object.entries(newProperties)) {
+              if (existingProperties[key] !== value) {
+                hasChanges = true;
+                break;
+              }
+            }
+            
+            if (hasChanges) {
+              await fileProcessorService.exportMetadataToDrive(file);
+              exportedCount++;
+            } else {
+              skippedCount++;
+            }
           }
         } catch (error) {
           errors.push(`Failed to export file ${fileId}: ${error.message}`);
@@ -484,8 +515,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ 
-        message: `Bulk export completed. Exported ${exportedCount} files.${errors.length > 0 ? ` ${errors.length} files failed.` : ''}`,
+        message: `Bulk export completed. Exported ${exportedCount} files, skipped ${skippedCount} files (no changes).${errors.length > 0 ? ` ${errors.length} files failed.` : ''}`,
         exportedCount,
+        skippedCount,
         errors: errors.length > 0 ? errors : undefined
       });
     } catch (error) {

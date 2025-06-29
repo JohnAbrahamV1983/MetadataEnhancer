@@ -175,8 +175,12 @@ export class FileProcessorService {
         throw new Error('No AI-generated metadata to export');
       }
 
-      // Convert metadata to string properties for Google Drive
-      const properties: Record<string, string> = {};
+      // First, get existing metadata from Google Drive to compare
+      const existingDriveMetadata = await googleDriveService.getFileMetadata(file.driveId);
+      const existingProperties = existingDriveMetadata.properties || {};
+
+      // Convert AI metadata to the format that would be stored in Drive
+      const newProperties: Record<string, string> = {};
       
       Object.entries(file.aiGeneratedMetadata).forEach(([key, value]) => {
         // Sanitize the key to only contain allowed characters for Google Drive
@@ -197,7 +201,7 @@ export class FileProcessorService {
         
         if (Buffer.byteLength(stringValue, 'utf8') <= maxValueBytes) {
           // Value fits in one property
-          properties[sanitizedKey] = stringValue;
+          newProperties[sanitizedKey] = stringValue;
         } else {
           // Split long values into multiple properties
           let remaining = stringValue;
@@ -222,7 +226,7 @@ export class FileProcessorService {
               break;
             }
             
-            properties[partKey] = testValue;
+            newProperties[partKey] = testValue;
             remaining = remaining.substring(cutPoint);
             partIndex++;
             
@@ -236,19 +240,46 @@ export class FileProcessorService {
       const timestamp = new Date().toISOString();
       const timestampKey = 'AI_Generated_At';
       if (Buffer.byteLength(timestampKey + timestamp, 'utf8') <= 120) {
-        properties[timestampKey] = timestamp;
+        newProperties[timestampKey] = timestamp;
       }
       
       // Add source application (ensure it fits in 124 bytes)
       const appName = 'MetadataEnhancer';
       const appKey = 'AI_Generated_By';
       if (Buffer.byteLength(appKey + appName, 'utf8') <= 120) {
-        properties[appKey] = appName;
+        newProperties[appKey] = appName;
       }
 
-      await googleDriveService.updateFileProperties(file.driveId, properties);
+      // Compare new properties with existing ones
+      let hasChanges = false;
       
-      console.log(`Exported metadata to Google Drive for file: ${file.name}`);
+      // Check if any new property is different from existing
+      for (const [key, value] of Object.entries(newProperties)) {
+        if (existingProperties[key] !== value) {
+          hasChanges = true;
+          break;
+        }
+      }
+      
+      // Check if any existing AI properties are no longer present
+      if (!hasChanges) {
+        for (const key of Object.keys(existingProperties)) {
+          if (key.startsWith('AI_') && !(key in newProperties)) {
+            hasChanges = true;
+            break;
+          }
+        }
+      }
+
+      if (!hasChanges) {
+        console.log(`Metadata for file "${file.name}" is already up to date, skipping export`);
+        return;
+      }
+
+      // Only export if there are changes
+      await googleDriveService.updateFileProperties(file.driveId, newProperties);
+      
+      console.log(`Exported updated metadata to Google Drive for file: ${file.name}`);
     } catch (error) {
       console.error(`Failed to export metadata to Drive: ${error.message}`);
       throw error;
@@ -261,15 +292,48 @@ export class FileProcessorService {
       const processedFiles = files.filter(f => f.status === 'processed' && f.aiGeneratedMetadata);
       
       let exported = 0;
+      let skipped = 0;
+      
       for (const file of processedFiles) {
         try {
-          await this.exportMetadataToDrive(file);
-          exported++;
+          // Get existing metadata to check for changes
+          const existingDriveMetadata = await googleDriveService.getFileMetadata(file.driveId);
+          const existingProperties = existingDriveMetadata.properties || {};
+          
+          // Convert AI metadata for comparison
+          const newProperties: Record<string, string> = {};
+          Object.entries(file.aiGeneratedMetadata).forEach(([key, value]) => {
+            const sanitizedKey = `AI_${key}`.replace(/[^a-zA-Z0-9.!@$%^&*()\-_/]/g, '_');
+            let stringValue: string;
+            if (Array.isArray(value)) {
+              stringValue = value.join(', ');
+            } else {
+              stringValue = String(value);
+            }
+            newProperties[sanitizedKey] = stringValue;
+          });
+          
+          // Check for changes
+          let hasChanges = false;
+          for (const [key, value] of Object.entries(newProperties)) {
+            if (existingProperties[key] !== value) {
+              hasChanges = true;
+              break;
+            }
+          }
+          
+          if (hasChanges) {
+            await this.exportMetadataToDrive(file);
+            exported++;
+          } else {
+            skipped++;
+          }
         } catch (error) {
           console.error(`Failed to export metadata for ${file.name}:`, error);
         }
       }
       
+      console.log(`Batch export completed: ${exported} files exported, ${skipped} files skipped (no changes)`);
       return exported;
     } catch (error) {
       throw new Error(`Failed to export batch metadata: ${error.message}`);
