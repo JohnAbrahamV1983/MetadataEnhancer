@@ -107,7 +107,8 @@ Changelog:
 - June 28, 2025. Initial setup
 - June 28, 2025. Enhanced folder picker with Windows-like browser interface
 - June 28, 2025. Renamed application from "Drive Metadata Manager" to "Metadata Enhancer"
-- June 28, 2025. Added Smart Search feature with dedicated search page and navigation
+- June 28, 2025. Added AI Search feature with recursive folder search and navigation
+- June 28, 2025. Fixed AI metadata persistence - now restores metadata from Google Drive properties on reload
 ```
 
 ## User Preferences

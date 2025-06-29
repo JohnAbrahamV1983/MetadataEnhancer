@@ -114,6 +114,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let stored = await storage.getDriveFileByDriveId(driveFile.id);
 
         if (!stored) {
+          // Get full metadata from Google Drive to check for AI properties
+          const fullMetadata = await googleDriveService.getFileMetadata(driveFile.id);
+          const driveProperties = fullMetadata.properties || {};
+          
+          // Restore AI metadata from Google Drive properties
+          let aiGeneratedMetadata = null;
+          let status = 'pending';
+          
+          if (Object.keys(driveProperties).some(key => key.startsWith('AI_'))) {
+            // Reconstruct AI metadata from Google Drive properties
+            aiGeneratedMetadata = {};
+            for (const [key, value] of Object.entries(driveProperties)) {
+              if (key.startsWith('AI_')) {
+                const metadataKey = key.substring(3); // Remove 'AI_' prefix
+                
+                // Handle arrays (tags) and other data types
+                if (metadataKey === 'tags' && typeof value === 'string') {
+                  try {
+                    aiGeneratedMetadata[metadataKey] = JSON.parse(value);
+                  } catch {
+                    aiGeneratedMetadata[metadataKey] = value.split(',').map(tag => tag.trim());
+                  }
+                } else {
+                  aiGeneratedMetadata[metadataKey] = value;
+                }
+              }
+            }
+            
+            if (Object.keys(aiGeneratedMetadata).length > 0) {
+              status = 'processed';
+            }
+          }
+
           // Create new file record
           const fileData = {
             driveId: driveFile.id,
@@ -126,15 +159,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
             thumbnailLink: driveFile.thumbnailLink || null,
             createdTime: new Date(driveFile.createdTime),
             modifiedTime: new Date(driveFile.modifiedTime),
-            status: 'pending',
+            status: status,
             processingError: null,
             existingMetadata: null,
-            aiGeneratedMetadata: null,
+            aiGeneratedMetadata: aiGeneratedMetadata,
             customMetadata: null
           };
 
           const validatedData = insertDriveFileSchema.parse(fileData);
           stored = await storage.createDriveFile(validatedData);
+        } else {
+          // For existing files, check if we need to restore AI metadata
+          if (!stored.aiGeneratedMetadata) {
+            try {
+              const fullMetadata = await googleDriveService.getFileMetadata(driveFile.id);
+              const driveProperties = fullMetadata.properties || {};
+              
+              if (Object.keys(driveProperties).some(key => key.startsWith('AI_'))) {
+                // Reconstruct AI metadata from Google Drive properties
+                const aiGeneratedMetadata: any = {};
+                for (const [key, value] of Object.entries(driveProperties)) {
+                  if (key.startsWith('AI_')) {
+                    const metadataKey = key.substring(3); // Remove 'AI_' prefix
+                    
+                    // Handle arrays (tags) and other data types
+                    if (metadataKey === 'tags' && typeof value === 'string') {
+                      try {
+                        aiGeneratedMetadata[metadataKey] = JSON.parse(value);
+                      } catch {
+                        aiGeneratedMetadata[metadataKey] = value.split(',').map((tag: string) => tag.trim());
+                      }
+                    } else {
+                      aiGeneratedMetadata[metadataKey] = value;
+                    }
+                  }
+                }
+                
+                if (Object.keys(aiGeneratedMetadata).length > 0) {
+                  // Update the stored file with restored AI metadata
+                  stored = await storage.updateDriveFile(stored.id, {
+                    aiGeneratedMetadata: aiGeneratedMetadata,
+                    status: 'processed'
+                  }) || stored;
+                }
+              }
+            } catch (error) {
+              console.log(`Could not restore AI metadata for file ${driveFile.name}:`, error);
+            }
+          }
         }
 
         storedFiles.push(stored);
