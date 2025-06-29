@@ -708,12 +708,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all files recursively from the specified folder
       const allFiles = await getAllFilesRecursive(folderId || 'root');
       
+      // Debug logging
+      console.log(`Analytics for folder ${folderId}: Found ${allFiles.length} total files`);
+      
       // Calculate statistics
       const totalFiles = allFiles.length;
-      const filesWithAI = allFiles.filter((file: any) => 
-        file.aiGeneratedMetadata && Object.keys(file.aiGeneratedMetadata).length > 0
-      );
+      
+      // More robust check for files with AI metadata
+      const filesWithAI = allFiles.filter((file: any) => {
+        const hasAIMetadata = file.aiGeneratedMetadata && 
+          typeof file.aiGeneratedMetadata === 'object' && 
+          Object.keys(file.aiGeneratedMetadata).length > 0;
+        
+        // Also check if file status is 'processed' as another indicator
+        const isProcessed = file.status === 'processed';
+        
+        console.log(`File ${file.name}: hasAIMetadata=${hasAIMetadata}, status=${file.status}, aiGeneratedMetadata=${JSON.stringify(file.aiGeneratedMetadata)}`);
+        
+        return hasAIMetadata || isProcessed;
+      });
+      
       const filesWithAICount = filesWithAI.length;
+      console.log(`Files with AI: ${filesWithAICount}`);
       
       // Calculate field statistics by examining actual AI fields that exist
       let totalPossibleFields = 0;
@@ -726,25 +742,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         Object.keys(metadata).forEach(key => allAIFields.add(key));
       });
       
+      // If no AI fields exist yet, use a default set of expected fields for calculation
+      if (allAIFields.size === 0 && filesWithAI.length > 0) {
+        ['description', 'tags', 'category', 'colors', 'objects'].forEach(field => allAIFields.add(field));
+      }
+      
       // Calculate field statistics based on actual fields that exist
-      filesWithAI.forEach((file: any) => {
-        const metadata = file.aiGeneratedMetadata || {};
-        
-        allAIFields.forEach(fieldName => {
-          totalPossibleFields++;
+      if (allAIFields.size > 0) {
+        filesWithAI.forEach((file: any) => {
+          const metadata = file.aiGeneratedMetadata || {};
           
-          const fieldValue = metadata[fieldName];
-          if (fieldValue !== null && fieldValue !== undefined && fieldValue !== '') {
-            if (Array.isArray(fieldValue)) {
-              if (fieldValue.length > 0) {
+          allAIFields.forEach(fieldName => {
+            totalPossibleFields++;
+            
+            const fieldValue = metadata[fieldName];
+            if (fieldValue !== null && fieldValue !== undefined && fieldValue !== '') {
+              if (Array.isArray(fieldValue)) {
+                if (fieldValue.length > 0) {
+                  totalFilledFields++;
+                }
+              } else {
                 totalFilledFields++;
               }
-            } else {
-              totalFilledFields++;
             }
-          }
+          });
         });
-      });
+      }
       
       const analytics = {
         totalFiles,
@@ -756,8 +779,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         uniqueAIFields: Array.from(allAIFields)
       };
       
+      console.log(`Final analytics:`, analytics);
       res.json(analytics);
     } catch (error) {
+      console.error('Analytics error:', error);
       res.status(500).json({ message: (error as Error).message });
     }
   });
