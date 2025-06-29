@@ -63,9 +63,9 @@ export default function FileGrid({
     },
   });
 
-  const getFileIcon = (file: DriveFile) => {
-    // Show thumbnail for images if available
-    if (file.type === 'image' && file.thumbnailLink) {
+  const getFileIcon = (file: DriveFile, isGridView = false) => {
+    // Show thumbnail for images if available (only in list view, grid view handles this separately)
+    if (file.type === 'image' && file.thumbnailLink && !isGridView) {
       return (
         <img 
           src={file.thumbnailLink} 
@@ -76,15 +76,16 @@ export default function FileGrid({
     }
     
     // Fallback to type-based icons
+    const iconSize = isGridView ? "h-16 w-16" : "h-5 w-5";
     switch (file.type) {
       case 'image':
-        return <FileImage className="h-5 w-5 text-blue-600" />;
+        return <FileImage className={`${iconSize} text-blue-600`} />;
       case 'video':
-        return <FileVideo className="h-5 w-5 text-purple-600" />;
+        return <FileVideo className={`${iconSize} text-purple-600`} />;
       case 'pdf':
-        return <FileText className="h-5 w-5 text-red-600" />;
+        return <FileText className={`${iconSize} text-red-600`} />;
       default:
-        return <File className="h-5 w-5 text-gray-600" />;
+        return <File className={`${iconSize} text-gray-600`} />;
     }
   };
 
@@ -229,7 +230,7 @@ export default function FileGrid({
                 : `No ${filter} found in this folder.`}
             </p>
           </div>
-        ) : (
+        ) : viewMode === "list" ? (
           <>
             <Card className="mb-6">
               <CardContent className="pt-6">
@@ -256,7 +257,7 @@ export default function FileGrid({
                     <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-5 flex items-center space-x-3">
                         <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
-                          {getFileIcon(file)}
+                          {getFileIcon(file, false)}
                         </div>
                         <div>
                           <p className="font-medium text-foreground">{file.name}</p>
@@ -296,6 +297,61 @@ export default function FileGrid({
               </CardContent>
             </Card>
           </>
+        ) : (
+          /* Grid View */
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {filteredFiles.map((file) => (
+              <Card 
+                key={file.id}
+                className={`cursor-pointer hover:shadow-md transition-shadow ${
+                  selectedFileId === file.id ? "ring-2 ring-primary" : ""
+                }`}
+                onClick={() => onFileSelect(file)}
+              >
+                <CardContent className="p-4">
+                  <div className="aspect-square mb-3 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                    {file.type === 'image' && file.thumbnailLink ? (
+                      <img 
+                        src={file.thumbnailLink} 
+                        alt={file.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-16 h-16">
+                        {getFileIcon(file, true)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="font-medium text-sm text-foreground truncate" title={file.name}>
+                      {file.name}
+                    </p>
+                    <div className="flex justify-between items-center">
+                      {getTypeBadge(file.type)}
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (file.status === "pending") {
+                            processFileMutation.mutate(file.id);
+                          }
+                        }}
+                        disabled={file.status === "processing" || processFileMutation.isPending}
+                        className="h-6 w-6 p-0"
+                      >
+                        <MoreVertical className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-muted-foreground">
+                      <span>{formatFileSize(file.size)}</span>
+                      {getStatusBadge(file.status)}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
 
         {/* Stats Cards */}
