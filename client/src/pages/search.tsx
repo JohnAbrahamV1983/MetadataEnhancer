@@ -23,6 +23,16 @@ export default function SearchPage() {
     queryKey: ["/api/drive/folders"],
   });
 
+  // Get analytics for the selected folder
+  const { data: analytics } = useQuery({
+    queryKey: ["/api/analytics", selectedFolderId],
+    queryFn: async () => {
+      const response = await fetch(`/api/analytics/${selectedFolderId}`);
+      if (!response.ok) throw new Error('Failed to fetch analytics');
+      return response.json();
+    },
+  });
+
   const selectedFolder = (folders as any)?.find?.((f: any) => f.id === selectedFolderId);
   const folderName = selectedFolder?.name || "Root";
 
@@ -89,11 +99,44 @@ export default function SearchPage() {
               <div className="flex items-center gap-4">
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground mb-2">Currently searching in:</p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 mb-3">
                     <Badge variant="outline" className="px-3 py-1">
                       {folderName}
                     </Badge>
                   </div>
+                  
+                  {/* Analytics Display */}
+                  {analytics && (
+                    <div className="space-y-2 p-3 bg-muted/30 rounded-lg">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Folder Statistics</p>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Files with AI Tags:</span>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">{analytics.filesWithAI}</span>
+                              <span className="text-muted-foreground">/ {analytics.totalFiles}</span>
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                                {analytics.filesWithAIPercentage}%
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">AI Fields Filled:</span>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">{analytics.totalFilledFields}</span>
+                              <span className="text-muted-foreground">/ {analytics.totalPossibleFields}</span>
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                                {analytics.filledFieldsPercentage}%
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <Dialog open={showFolderDialog} onOpenChange={setShowFolderDialog}>
                   <DialogTrigger asChild>

@@ -109,6 +109,7 @@ Changelog:
 - June 28, 2025. Renamed application from "Drive Metadata Manager" to "Metadata Enhancer"
 - June 28, 2025. Added AI Search feature with recursive folder search and navigation
 - June 28, 2025. Fixed AI metadata persistence - now restores metadata from Google Drive properties on reload
+- June 29, 2025. Added analytics to AI Search - shows percentage and absolute numbers of AI-tagged assets and filled fields per folder
 ```
 
 ## User Preferences

@@ -677,6 +677,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get analytics for a specific folder
+  app.get("/api/analytics/:folderId", async (req, res) => {
+    try {
+      const { folderId } = req.params;
+      
+      // Get all files recursively from the specified folder
+      const allFiles = await getAllFilesRecursively(folderId || 'root');
+      
+      // Calculate statistics
+      const totalFiles = allFiles.length;
+      const filesWithAI = allFiles.filter(file => 
+        file.aiGeneratedMetadata && Object.keys(file.aiGeneratedMetadata).length > 0
+      );
+      const filesWithAICount = filesWithAI.length;
+      
+      // Calculate field statistics
+      let totalPossibleFields = 0;
+      let totalFilledFields = 0;
+      
+      // Common AI metadata fields we expect
+      const expectedFields = ['title', 'description', 'tags', 'category', 'subject', 'location', 'mood', 'colors'];
+      
+      filesWithAI.forEach(file => {
+        const metadata = file.aiGeneratedMetadata || {};
+        
+        expectedFields.forEach(fieldName => {
+          totalPossibleFields++;
+          
+          const fieldValue = metadata[fieldName];
+          if (fieldValue !== null && fieldValue !== undefined && fieldValue !== '') {
+            if (Array.isArray(fieldValue)) {
+              if (fieldValue.length > 0) {
+                totalFilledFields++;
+              }
+            } else {
+              totalFilledFields++;
+            }
+          }
+        });
+      });
+      
+      const analytics = {
+        totalFiles,
+        filesWithAI: filesWithAICount,
+        filesWithAIPercentage: totalFiles > 0 ? Math.round((filesWithAICount / totalFiles) * 100) : 0,
+        totalPossibleFields,
+        totalFilledFields,
+        filledFieldsPercentage: totalPossibleFields > 0 ? Math.round((totalFilledFields / totalPossibleFields) * 100) : 0
+      };
+      
+      res.json(analytics);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
