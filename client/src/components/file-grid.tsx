@@ -63,8 +63,20 @@ export default function FileGrid({
     },
   });
 
-  const getFileIcon = (type: string) => {
-    switch (type) {
+  const getFileIcon = (file: DriveFile) => {
+    // Show thumbnail for images if available
+    if (file.type === 'image' && file.thumbnailLink) {
+      return (
+        <img 
+          src={file.thumbnailLink} 
+          alt={file.name}
+          className="h-8 w-8 object-cover rounded"
+        />
+      );
+    }
+    
+    // Fallback to type-based icons
+    switch (file.type) {
       case 'image':
         return <FileImage className="h-5 w-5 text-blue-600" />;
       case 'video':
@@ -244,7 +256,7 @@ export default function FileGrid({
                     <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-5 flex items-center space-x-3">
                         <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
-                          {getFileIcon(file.type)}
+                          {getFileIcon(file)}
                         </div>
                         <div>
                           <p className="font-medium text-foreground">{file.name}</p>
