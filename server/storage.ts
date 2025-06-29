@@ -23,6 +23,7 @@ export interface IStorage {
   getDriveFile(id: number): Promise<DriveFile | undefined>;
   getDriveFileByDriveId(driveId: string): Promise<DriveFile | undefined>;
   getDriveFilesByFolder(folderId: string): Promise<DriveFile[]>;
+  getAllDriveFiles(): Promise<DriveFile[]>;
   createDriveFile(file: InsertDriveFile): Promise<DriveFile>;
   updateDriveFile(id: number, updates: Partial<DriveFile>): Promise<DriveFile | undefined>;
   deleteDriveFile(id: number): Promise<boolean>;
@@ -90,6 +91,10 @@ export class MemStorage implements IStorage {
 
   async getDriveFilesByFolder(folderId: string): Promise<DriveFile[]> {
     return Array.from(this.driveFiles.values()).filter(file => file.parentFolderId === folderId);
+  }
+
+  async getAllDriveFiles(): Promise<DriveFile[]> {
+    return Array.from(this.driveFiles.values());
   }
 
   async createDriveFile(insertFile: InsertDriveFile): Promise<DriveFile> {
