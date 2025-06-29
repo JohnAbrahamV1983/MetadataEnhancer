@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Search, FolderOpen, Image, FileText, Tag, Calendar, User } from "lucide-react";
 import { type DriveFile } from "@shared/schema";
 import FolderBrowser from "@/components/folder-browser";
+import Header from "@/components/header";
 
 export default function SearchPage() {
   const [selectedFolderId, setSelectedFolderId] = useState("root");
@@ -58,8 +59,14 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-background">
-      {/* Header */}
+    <div className="h-screen bg-background flex flex-col">
+      <Header 
+        currentFolderId={selectedFolderId}
+        onFolderChange={setSelectedFolderId}
+        onStartProcessing={() => {}}
+      />
+      
+      {/* Search Header */}
       <div className="bg-card shadow-sm border-b border-border p-6">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold text-foreground mb-2">Smart Image Search</h1>

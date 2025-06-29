@@ -75,10 +75,10 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
     mutationFn: async () => {
       const response = await apiRequest("GET", "/api/auth/google/url");
       const { authUrl } = await response.json();
-      
+
       // Open auth URL in new window
       const popup = window.open(authUrl, "_blank", "width=500,height=600");
-      
+
       // Monitor popup for closure
       const checkClosed = setInterval(() => {
         if (popup?.closed) {
@@ -87,7 +87,7 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
           setTimeout(() => refetchAuthStatus(), 500);
         }
       }, 1000);
-      
+
       return { success: true };
     },
     onError: (error: any) => {
@@ -205,7 +205,7 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
     formData.append('file', file);
 
     uploadTemplateMutation.mutate(formData);
-    
+
     // Reset the input
     event.target.value = '';
   };
@@ -218,7 +218,7 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
             <Cloud className="text-primary text-xl" />
             <h1 className="text-xl font-semibold text-foreground">Metadata Enhancer</h1>
           </div>
-          
+
           {/* Navigation */}
           <div className="flex items-center space-x-2 ml-8">
             <Link href="/">
@@ -241,7 +241,7 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
             </Link>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-4">
           {isConnected ? (
             <div className="flex items-center space-x-2">
@@ -276,7 +276,7 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
               {connectMutation.isPending ? "Connecting..." : "Connect to Google Drive"}
             </Button>
           )}
-          
+
           <Button variant="ghost" size="icon">
             <Settings className="h-4 w-4" />
           </Button>
@@ -297,7 +297,7 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
                   {currentFolderId ? folders?.find(f => f.id === currentFolderId)?.path || "Unknown" : "No folder selected"}
                 </span>
               </div>
-              
+
               <Dialog open={showFolderDialog} onOpenChange={setShowFolderDialog}>
                 <DialogTrigger asChild>
                   <Button variant="link" size="sm" className="text-primary hover:text-primary/80 h-auto p-0">
@@ -321,7 +321,7 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
                 </DialogContent>
               </Dialog>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               <input
                 type="file"
@@ -347,7 +347,7 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
                 <Upload className="h-4 w-4 mr-2" />
                 {uploadTemplateMutation.isPending ? "Uploading..." : "Upload CSV Template"}
               </Button>
-              
+
               <Button 
                 onClick={onStartProcessing}
                 disabled={!currentFolderId}
@@ -356,7 +356,7 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
                 <Play className="h-4 w-4 mr-2" />
                 Start Processing
               </Button>
-              
+
               <Button 
                 variant="outline"
                 onClick={() => bulkExportMutation.mutate()}
