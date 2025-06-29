@@ -253,15 +253,6 @@ export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps
           {/* Action Buttons */}
           {file.status === "processed" && file.aiGeneratedMetadata && (
             <div className="space-y-3">
-              <Button 
-                className="w-full"
-                onClick={() => exportMetadataMutation.mutate()}
-                disabled={exportMetadataMutation.isPending}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                {exportMetadataMutation.isPending ? "Exporting..." : "Export to Google Drive"}
-              </Button>
-              
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="w-full">
@@ -269,11 +260,11 @@ export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps
                     Verify Exported Metadata
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[70vh]">
+                <DialogContent className="max-w-4xl max-h-[80vh]">
                   <DialogHeader>
-                    <DialogTitle>Exported Metadata Verification</DialogTitle>
+                    <DialogTitle>Exported Metadata Verification - All Files</DialogTitle>
                   </DialogHeader>
-                  <VerificationContentInner fileId={file.id} />
+                  <AllFilesVerificationContent />
                 </DialogContent>
               </Dialog>
               
@@ -294,75 +285,89 @@ export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps
   );
 }
 
-function VerificationContentInner({ fileId }: { fileId: number }) {
-  const { data: verification, isLoading, error } = useQuery({
-    queryKey: [`/api/verify/file/${fileId}`],
-    enabled: !!fileId,
+function AllFilesVerificationContent() {
+  const { data: allVerifications, isLoading, error } = useQuery({
+    queryKey: ["/api/verify/all-files"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/verify/all-files");
+      return response.json();
+    },
   });
 
   if (isLoading) {
-    return <div className="p-4 text-center">Loading verification data...</div>;
+    return <div className="p-4 text-center">Loading verification data for all files...</div>;
   }
 
   if (error) {
     return <div className="p-4 text-center text-red-500">Failed to load verification data</div>;
   }
 
-  if (!verification) {
+  if (!allVerifications || allVerifications.length === 0) {
     return <div className="p-4 text-center">No verification data available</div>;
   }
 
-  const driveProperties = verification.driveProperties || {};
-  const hasExportedData = Object.keys(driveProperties).some(key => key.startsWith('AI_'));
-
   return (
-    <ScrollArea className="max-h-[50vh]">
-      <div className="space-y-4 p-4">
-        <div>
-          <Label className="text-sm font-medium">File: {verification.fileName}</Label>
-        </div>
-        
-        {hasExportedData ? (
-          <div>
-            <Label className="text-sm font-medium text-green-600">✅ Metadata Successfully Exported to Google Drive</Label>
-            <Card className="mt-2">
-              <CardHeader>
-                <CardTitle className="text-sm">Exported Properties in Google Drive</CardTitle>
+    <ScrollArea className="max-h-[60vh]">
+      <div className="space-y-6 p-4">
+        {allVerifications.map((verification: any, index: number) => {
+          const driveProperties = verification.driveProperties || {};
+          const hasExportedData = Object.keys(driveProperties).some(key => key.startsWith('AI_'));
+          
+          return (
+            <Card key={index} className="border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center justify-between">
+                  <span>{verification.fileName}</span>
+                  {hasExportedData ? (
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">✅ Exported</Badge>
+                  ) : (
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-800">⚠️ Not Exported</Badge>
+                  )}
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                {Object.entries(driveProperties)
-                  .filter(([key]) => key.startsWith('AI_'))
-                  .map(([key, value]) => (
-                    <div key={key}>
-                      <Label className="text-xs text-muted-foreground">{key}</Label>
-                      <p className="text-sm text-foreground">{String(value)}</p>
+              <CardContent>
+                {hasExportedData ? (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium text-green-600">Metadata Successfully Exported to Google Drive</Label>
+                    <div className="bg-muted rounded-lg p-3 space-y-2">
+                      {Object.entries(driveProperties)
+                        .filter(([key]) => key.startsWith('AI_'))
+                        .map(([key, value]) => (
+                          <div key={key}>
+                            <Label className="text-xs text-muted-foreground">{key}</Label>
+                            <p className="text-sm text-foreground break-words">{String(value)}</p>
+                          </div>
+                        ))}
                     </div>
-                  ))}
+                    
+                    {Object.keys(driveProperties).filter(key => !key.startsWith('AI_')).length > 0 && (
+                      <details className="mt-3">
+                        <summary className="text-sm font-medium cursor-pointer">Other Google Drive Properties</summary>
+                        <div className="mt-2 space-y-1 bg-muted rounded-lg p-2">
+                          {Object.entries(driveProperties)
+                            .filter(([key]) => !key.startsWith('AI_'))
+                            .map(([key, value]) => (
+                              <div key={key} className="text-xs">
+                                <span className="font-mono text-muted-foreground">{key}:</span>
+                                <span className="ml-2 break-words">{String(value)}</span>
+                              </div>
+                            ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-sm font-medium text-orange-600">No exported metadata found in Google Drive</Label>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Use the bulk export feature to save metadata as Google Drive properties.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          </div>
-        ) : (
-          <div>
-            <Label className="text-sm font-medium text-orange-600">⚠️ No exported metadata found in Google Drive</Label>
-            <p className="text-sm text-muted-foreground mt-2">
-              Use the "Export to Google Drive" button to save the metadata as Google Drive properties.
-            </p>
-          </div>
-        )}
-        
-        {Object.keys(driveProperties).length > 0 && (
-          <details className="mt-4">
-            <summary className="text-sm font-medium cursor-pointer">All Google Drive Properties</summary>
-            <div className="mt-2 space-y-1">
-              {Object.entries(driveProperties).map(([key, value]) => (
-                <div key={key} className="text-xs">
-                  <span className="font-mono text-muted-foreground">{key}:</span>
-                  <span className="ml-2">{String(value)}</span>
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
+          );
+        })}
       </div>
     </ScrollArea>
   );

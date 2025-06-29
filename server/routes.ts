@@ -417,11 +417,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Verify exported metadata for all processed files
+  app.get("/api/verify/all-files", async (req, res) => {
+    try {
+      // Get all processed files from database
+      const files = await storage
+        .getAllDriveFiles();
+
+      if (files.length === 0) {
+        return res.json([]);
+      }
+
+      const verifications = [];
+
+      // Get metadata for each file
+      for (const file of files) {
+        try {
+          // Get metadata directly from Google Drive
+           const driveMetadata = await googleDriveService.getFileMetadata(file.driveId);
+
+
+          verifications.push({
+            fileName: file.name,
+            driveProperties: driveMetadata.properties || {},
+            exportedMetadata: file.aiGeneratedMetadata
+          });
+        } catch (error) {
+          console.error(`Failed to verify file ${file.name}:`, error);
+          verifications.push({
+            fileName: file.name,
+            driveProperties: {},
+            exportedMetadata: file.aiGeneratedMetadata,
+            error: error.message
+          });
+        }
+      }
+
+      res.json(verifications);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Bulk export multiple files
   app.post("/api/export/bulk", async (req, res) => {
     try {
       const { fileIds } = req.body;
-      
+
       if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
         return res.status(400).json({ message: "No file IDs provided for bulk export" });
       }
