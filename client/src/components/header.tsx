@@ -236,7 +236,7 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
                 size="sm"
               >
                 <Search className="h-4 w-4 mr-2" />
-                Smart Search
+                AI Search
               </Button>
             </Link>
           </div>

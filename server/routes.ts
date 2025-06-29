@@ -525,7 +525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Smart search endpoint
+  // AI search endpoint with recursive folder search
   app.post("/api/search", async (req, res) => {
     try {
       const { query, folderId } = req.body;
@@ -534,8 +534,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Search query is required" });
       }
 
-      // Get all files in the specified folder
-      const allFiles = await storage.getDriveFilesByFolder(folderId || "root");
+      // Recursive function to get all files from folder and subfolders
+      const getAllFilesRecursive = async (targetFolderId: string): Promise<any[]> => {
+        const allFiles: any[] = [];
+        
+        // Get direct files in this folder
+        const directFiles = await storage.getDriveFilesByFolder(targetFolderId);
+        allFiles.push(...directFiles);
+        
+        // Get all subfolders and recursively search them
+        try {
+          const subfolders = await googleDriveService.listFolders(targetFolderId);
+          for (const subfolder of subfolders) {
+            const subfolderFiles = await getAllFilesRecursive(subfolder.id);
+            allFiles.push(...subfolderFiles);
+          }
+        } catch (error) {
+          // Continue if we can't access some subfolders
+          console.log(`Could not access subfolders for ${targetFolderId}`);
+        }
+        
+        return allFiles;
+      };
+
+      // Get all files from the specified folder and all its subfolders
+      const allFiles = await getAllFilesRecursive(folderId || "root");
       
       // Filter files that have been processed and have AI metadata
       const processedFiles = allFiles.filter(file => 

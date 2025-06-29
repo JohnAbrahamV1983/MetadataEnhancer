@@ -5,12 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Search, FolderOpen, Image, FileText, Tag, Calendar, User } from "lucide-react";
+import { Search, FolderOpen, Image, Tag, Calendar, ExternalLink } from "lucide-react";
 import { type DriveFile } from "@shared/schema";
 import FolderBrowser from "@/components/folder-browser";
-import Header from "@/components/header";
 
 export default function SearchPage() {
   const [selectedFolderId, setSelectedFolderId] = useState("root");
@@ -60,25 +58,17 @@ export default function SearchPage() {
 
   return (
     <div className="h-screen bg-background flex flex-col">
-      <Header 
-        currentFolderId={selectedFolderId}
-        onFolderChange={setSelectedFolderId}
-        onStartProcessing={() => {}}
-      />
-      
-      {/* Search Header */}
-      <div className="bg-card shadow-sm border-b border-border p-6">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-foreground mb-2">Smart Image Search</h1>
-          <p className="text-muted-foreground">
-            Search your Google Drive images using AI-generated metadata, descriptions, tags, and more
-          </p>
-        </div>
-      </div>
-
       {/* Search Interface */}
       <div className="flex-1 p-6">
         <div className="max-w-4xl mx-auto space-y-6">
+          
+          {/* Page Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-foreground mb-2">AI Image Search</h1>
+            <p className="text-muted-foreground">
+              Search your Google Drive images using AI-generated metadata, descriptions, tags, and more
+            </p>
+          </div>
           
           {/* Folder Selection */}
           <Card>
@@ -130,7 +120,7 @@ export default function SearchPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Search className="h-5 w-5" />
-                Search Query
+                AI Search Query
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -152,6 +142,9 @@ export default function SearchPage() {
               <div className="mt-3">
                 <p className="text-sm text-muted-foreground">
                   Try searching for: "sunset", "person smiling", "red car", "outdoor scene", etc.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Searches include all files and subfolders within the selected folder.
                 </p>
               </div>
             </CardContent>
@@ -196,14 +189,24 @@ export default function SearchPage() {
 function SearchResultCard({ file }: { file: DriveFile }) {
   const aiMetadata = (file.aiGeneratedMetadata || {}) as any;
   
+  const handleImageClick = () => {
+    if (file.webViewLink) {
+      window.open(file.webViewLink, '_blank');
+    }
+  };
+  
   return (
     <Card className="overflow-hidden">
-      <div className="aspect-video bg-muted flex items-center justify-center">
+      <div 
+        className="aspect-video bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors"
+        onClick={handleImageClick}
+        title="Click to open in Google Drive"
+      >
         {file.thumbnailLink ? (
           <img 
             src={file.thumbnailLink} 
             alt={file.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover hover:scale-105 transition-transform"
           />
         ) : (
           <Image className="h-8 w-8 text-muted-foreground" />
@@ -245,15 +248,29 @@ function SearchResultCard({ file }: { file: DriveFile }) {
           </div>
         )}
         
-        {/* File Info */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            {new Date(file.createdTime).toLocaleDateString()}
-          </span>
-          <Badge variant={file.status === 'processed' ? 'default' : 'secondary'} className="text-xs">
-            {file.status}
-          </Badge>
+        {/* File Info and Actions */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {new Date(file.createdTime).toLocaleDateString()}
+            </span>
+            <Badge variant={file.status === 'processed' ? 'default' : 'secondary'} className="text-xs">
+              {file.status}
+            </Badge>
+          </div>
+          
+          {file.webViewLink && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="w-full text-xs" 
+              onClick={handleImageClick}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              View in Google Drive
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
