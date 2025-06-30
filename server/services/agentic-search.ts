@@ -29,8 +29,6 @@ export class AgenticSearchService {
         continue;
       }
       processedFolders.add(currentFolderId);
-      console.log(`Agentic Search: Processing folder ${currentFolderId}`);
-
       // First, ensure all files in this folder are discovered and synced to our database
       try {
         const { googleDriveService } = await import('./google-drive');
@@ -70,14 +68,11 @@ export class AgenticSearchService {
               }
               
               if (properties) {
-                console.log(`Found Google Drive properties for ${driveFile.name}:`, properties);
                 const aiGeneratedMetadata: any = {};
                 let hasAiMetadata = false;
                 
                 for (const [key, value] of Object.entries(properties)) {
-                  console.log(`Checking property: ${key} = ${value}`);
                   if (key.startsWith('AI_') && value) {
-                    console.log(`Found AI property: ${key} = ${value}`);
                     try {
                       // Try to parse JSON values, fallback to string
                       const cleanKey = key.replace('AI_', '');
@@ -100,7 +95,6 @@ export class AgenticSearchService {
                     }
                   }
                 }
-                console.log(`AI metadata restoration result for ${driveFile.name}: hasAiMetadata=${hasAiMetadata}, metadata=`, aiGeneratedMetadata);
                 
                 if (hasAiMetadata) {
                   storedFile = await storage.updateDriveFile(storedFile.id, {
@@ -144,19 +138,12 @@ export class AgenticSearchService {
         ? await this.getAllFilesRecursively(folderId)
         : await storage.getAllDriveFiles();
       
-      console.log(`Agentic Search: Found ${allFiles.length} total files for query "${userQuery}"`);
-      allFiles.forEach(file => {
-        console.log(`  - ${file.name} (${file.type}) - Status: ${file.status} - AI Metadata: ${file.aiGeneratedMetadata ? Object.keys(file.aiGeneratedMetadata as any).length : 0} fields`);
-      });
-      
       // Filter files that have been processed and have AI metadata
       const processedFiles = allFiles.filter(file => 
         file.status === 'processed' && 
         file.aiGeneratedMetadata && 
         Object.keys(file.aiGeneratedMetadata as any).length > 0
       );
-
-      console.log(`Agentic Search: Found ${processedFiles.length} processed files with AI metadata`);
 
       // If no processed files, include all files for basic search
       const searchableFiles = processedFiles.length > 0 ? processedFiles : allFiles;
