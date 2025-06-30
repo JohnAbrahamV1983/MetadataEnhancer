@@ -805,43 +805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug endpoint to check Google Drive properties for version mismatch
-  app.get("/api/debug/drive-properties/:fileId", async (req, res) => {
-    try {
-      const { fileId } = req.params;
-      console.log(`DEBUG: Getting ALL properties for file ${fileId}`);
-      const metadata = await googleDriveService.getFileMetadata(fileId);
-      console.log(`DEBUG: File ${fileId} ALL properties:`, JSON.stringify(metadata.properties, null, 2));
-      
-      // Check for different possible AI property prefixes
-      const allProps = metadata.properties || {};
-      const aiProps: any = {};
-      const possiblePrefixes = ['AI_', 'ai_', 'metadata_', 'generated_', ''];
-      
-      for (const [key, value] of Object.entries(allProps)) {
-        const lowerKey = key.toLowerCase();
-        if (lowerKey.includes('ai') || lowerKey.includes('generated') || lowerKey.includes('metadata') || 
-            lowerKey.includes('title') || lowerKey.includes('description') || lowerKey.includes('tags') ||
-            lowerKey.includes('subject') || lowerKey.includes('category') || lowerKey.includes('quality')) {
-          aiProps[key] = value;
-        }
-      }
-      
-      const response = {
-        fileId,
-        name: metadata.name,
-        mimeType: metadata.mimeType,
-        allProperties: allProps,
-        possibleAIProperties: aiProps,
-        totalProperties: Object.keys(allProps).length
-      };
-      console.log(`DEBUG: Found ${Object.keys(aiProps).length} possible AI properties:`, aiProps);
-      res.json(response);
-    } catch (error) {
-      console.log(`DEBUG: Error getting properties for ${req.params.fileId}:`, (error as Error).message);
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
+
 
   // Agentic Search - AI-powered natural language file search
   app.get("/api/agentic-search", async (req, res) => {

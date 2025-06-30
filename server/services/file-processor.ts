@@ -28,11 +28,21 @@ export class FileProcessorService {
       }
 
       // Update file with generated metadata
-      await storage.updateDriveFile(file.id, {
+      const updatedFile = await storage.updateDriveFile(file.id, {
         status: 'processed',
         aiGeneratedMetadata: generatedMetadata,
         processingError: null
       });
+
+      // Automatically export metadata to Google Drive after successful processing
+      if (updatedFile) {
+        try {
+          await this.exportMetadataToDrive(updatedFile);
+        } catch (exportError) {
+          console.error(`Failed to export metadata to Google Drive for file ${file.name}:`, (exportError as Error).message);
+          // Don't fail the processing if export fails, just log the error
+        }
+      }
 
     } catch (error) {
       console.error(`Failed to process file ${file.name}:`, error);
@@ -276,8 +286,10 @@ export class FileProcessorService {
         return;
       }
 
+      console.log(`Exporting AI metadata to Google Drive for "${file.name}":`, newProperties);
       // Only export if there are changes
       await googleDriveService.updateFileProperties(file.driveId, newProperties);
+      console.log(`Successfully exported AI metadata for "${file.name}" to Google Drive`);
       
       console.log(`Exported updated metadata to Google Drive for file: ${file.name}`);
     } catch (error) {
