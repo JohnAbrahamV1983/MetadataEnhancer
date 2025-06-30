@@ -6,7 +6,9 @@ import {
   Folder, 
   Clock, 
   FileText, 
-  BarChart3 
+  BarChart3,
+  RefreshCw,
+  DollarSign
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -20,12 +22,12 @@ export default function Sidebar() {
     queryKey: ["/api/templates"],
   });
 
-  // Simulate OpenAI credits for demo
-  const credits = {
-    remaining: 1250,
-    total: 2000,
-    percentage: 62.5
-  };
+  const { data: balance, refetch: refetchBalance, isLoading: balanceLoading, error: balanceError } = useQuery({
+    queryKey: ["/api/openai/balance"],
+    refetchInterval: 30000, // Refresh every 30 seconds
+    retry: 2,
+    staleTime: 10000, // Consider data stale after 10 seconds
+  });
 
   const tabs = [
     { id: "files", label: "File Browser", icon: Folder },
@@ -62,14 +64,56 @@ export default function Sidebar() {
       <div className="p-4 border-t border-sidebar-border">
         <div className="bg-muted rounded-lg p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-muted-foreground">OpenAI Credits</span>
-            <span className="text-sm text-foreground">{credits.remaining.toLocaleString()}</span>
+            <div className="flex items-center space-x-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">OpenAI Credits</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              {balanceLoading ? (
+                <div className="w-4 h-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => refetchBalance()}
+                  className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
           </div>
-          <Progress value={credits.percentage} className="h-2" />
-          <div className="flex justify-between text-xs text-muted-foreground mt-1">
-            <span>Used: {(credits.total - credits.remaining).toLocaleString()}</span>
-            <span>Total: {credits.total.toLocaleString()}</span>
-          </div>
+          
+          {balanceError ? (
+            <div className="text-xs text-destructive mb-2">
+              Failed to load balance
+            </div>
+          ) : balanceLoading ? (
+            <div className="space-y-2">
+              <div className="h-4 bg-muted-foreground/20 animate-pulse rounded" />
+              <div className="h-2 bg-muted-foreground/20 animate-pulse rounded" />
+            </div>
+          ) : balance ? (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-lg font-bold text-green-600">
+                  ${balance.balance?.toFixed(2) || '0.00'}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {balance.currency || 'USD'}
+                </span>
+              </div>
+              <Progress value={balance.percentage || 0} className="h-2" />
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>Used: ${balance.used?.toFixed(2) || '0.00'}</span>
+                <span>Total: ${balance.total?.toFixed(2) || '0.00'}</span>
+              </div>
+            </>
+          ) : (
+            <div className="text-xs text-muted-foreground">
+              No balance data available
+            </div>
+          )}
         </div>
       </div>
     </aside>

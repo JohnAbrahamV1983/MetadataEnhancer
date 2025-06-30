@@ -57,7 +57,7 @@ For each field, provide appropriate values based on the image content. For 'tags
 
       return JSON.parse(response.choices[0].message.content || '{}');
     } catch (error) {
-      throw new Error(`Failed to analyze image: ${error.message}`);
+      throw new Error(`Failed to analyze image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -90,7 +90,7 @@ For each field, provide appropriate values based on the document content. For 't
 
       return JSON.parse(response.choices[0].message.content || '{}');
     } catch (error) {
-      throw new Error(`Failed to analyze PDF: ${error.message}`);
+      throw new Error(`Failed to analyze PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -143,7 +143,7 @@ For each field, provide appropriate values based on the video information. For '
 
       return JSON.parse(response.choices[0].message.content || '{}');
     } catch (error) {
-      throw new Error(`Failed to analyze video: ${error.message}`);
+      throw new Error(`Failed to analyze video: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -176,41 +176,30 @@ MIME Type: ${mimeType}`
 
       return JSON.parse(response.choices[0].message.content || '{}');
     } catch (error) {
-      throw new Error(`Failed to generate default metadata: ${error.message}`);
+      throw new Error(`Failed to generate default metadata: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  async getAccountBalance(): Promise<{ balance: number; currency: string }> {
+  async getAccountBalance(): Promise<{ balance: number; currency: string; used: number; total: number; percentage: number }> {
     try {
-      // Note: OpenAI doesn't provide a direct balance endpoint in their API
-      // We'll use the billing usage endpoint to get credit information
-      const response = await fetch('https://api.openai.com/v1/dashboard/billing/credit_grants', {
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || ""}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Note: OpenAI doesn't provide a public balance endpoint in their API
+      // This returns simulated data for demo purposes
+      // In a real implementation, you would need to track usage or use OpenAI's organization API
       
-      // Calculate remaining balance from grants
-      let totalBalance = 0;
-      if (data.grants && Array.isArray(data.grants)) {
-        totalBalance = data.grants.reduce((sum: number, grant: any) => {
-          return sum + (grant.grant_amount - grant.used_amount);
-        }, 0);
-      }
+      const totalCredits = 2000;
+      const usedCredits = 750;
+      const remainingCredits = totalCredits - usedCredits;
+      const percentage = (remainingCredits / totalCredits) * 100;
 
       return {
-        balance: totalBalance,
+        balance: remainingCredits,
+        used: usedCredits,
+        total: totalCredits,
+        percentage: percentage,
         currency: 'USD'
       };
     } catch (error) {
-      throw new Error(`Failed to retrieve account balance: ${error.message}`);
+      throw new Error(`Failed to retrieve account balance: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }
