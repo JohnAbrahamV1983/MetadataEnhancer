@@ -18,6 +18,7 @@ interface DriveFileInfo {
   thumbnailLink?: string;
   createdTime: string;
   modifiedTime: string;
+  properties?: Record<string, string>;
 }
 
 interface FolderInfo {
@@ -130,7 +131,7 @@ export class GoogleDriveService {
     try {
       const response = await this.drive.files.list({
         q: `'${folderId}' in parents and trashed=false`,
-        fields: 'files(id, name, mimeType, size, parents, webViewLink, thumbnailLink, createdTime, modifiedTime)',
+        fields: 'files(id, name, mimeType, size, parents, webViewLink, thumbnailLink, createdTime, modifiedTime, properties)',
         pageSize: 100,
       });
 

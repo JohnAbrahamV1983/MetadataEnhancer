@@ -172,7 +172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stored = await storage.createDriveFile(validatedData);
         } else {
           // For existing files, check if we need to restore AI metadata
-          if (!stored.aiGeneratedMetadata) {
+          if (!stored.aiGeneratedMetadata || Object.keys(stored.aiGeneratedMetadata as any).length === 0) {
             try {
               const fullMetadata = await googleDriveService.getFileMetadata(driveFile.id);
               const driveProperties = fullMetadata.properties || {};

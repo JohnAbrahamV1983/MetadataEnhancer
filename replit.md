@@ -113,6 +113,7 @@ Changelog:
 - June 30, 2025. Added Agentic Search feature - natural language AI-powered file search with intelligent query understanding and semantic matching
 - June 30, 2025. Enhanced Agentic Search with recursive folder searching, improved UI matching AI Search design, and collapsible metadata display
 - June 30, 2025. Extended Agentic Search to include unprocessed files - now finds all files based on names, types, and dates even without AI metadata
+- June 30, 2025. Fixed critical AI metadata persistence issue - properly restores AI metadata from Google Drive properties in all file discovery operations, ensuring search works on historically processed files
 ```
 
 ## User Preferences

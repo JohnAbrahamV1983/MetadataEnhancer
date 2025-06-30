@@ -54,19 +54,46 @@ export class AgenticSearchService {
               modifiedTime: new Date(driveFile.modifiedTime),
               status: 'pending'
             });
-            
-            // Try to restore AI metadata from Google Drive properties
+          }
+          
+          // Always try to restore AI metadata from Google Drive properties if not already present
+          if (!storedFile.aiGeneratedMetadata || Object.keys(storedFile.aiGeneratedMetadata as any).length === 0) {
             try {
-              const metadata = await googleDriveService.getFileMetadata(driveFile.id);
-              if (metadata.properties) {
+              // First try using properties from the listFiles response
+              let properties = driveFile.properties;
+              
+              // If not available in the list response, fetch individual file metadata
+              if (!properties) {
+                const metadata = await googleDriveService.getFileMetadata(driveFile.id);
+                properties = metadata.properties;
+              }
+              
+              if (properties) {
                 const aiGeneratedMetadata: any = {};
                 let hasAiMetadata = false;
                 
-                for (const [key, value] of Object.entries(metadata.properties)) {
-                  if (key.startsWith('ai_') && value) {
-                    const cleanKey = key.replace('ai_', '');
-                    aiGeneratedMetadata[cleanKey] = value;
-                    hasAiMetadata = true;
+                for (const [key, value] of Object.entries(properties)) {
+                  if (key.startsWith('AI_') && value) {
+                    try {
+                      // Try to parse JSON values, fallback to string
+                      const cleanKey = key.replace('AI_', '');
+                      // Handle arrays (tags) and other data types
+                      if (cleanKey === 'tags' && typeof value === 'string') {
+                        try {
+                          aiGeneratedMetadata[cleanKey] = JSON.parse(value);
+                        } catch {
+                          aiGeneratedMetadata[cleanKey] = value.split(',').map((tag: string) => tag.trim());
+                        }
+                      } else {
+                        aiGeneratedMetadata[cleanKey] = value;
+                      }
+                      hasAiMetadata = true;
+                    } catch (parseError) {
+                      // If JSON parsing fails, use raw value
+                      const cleanKey = key.replace('AI_', '');
+                      aiGeneratedMetadata[cleanKey] = value;
+                      hasAiMetadata = true;
+                    }
                   }
                 }
                 
@@ -78,7 +105,7 @@ export class AgenticSearchService {
                 }
               }
             } catch (error) {
-              console.log(`Could not restore AI metadata for file ${driveFile.name}:`, error.message);
+              // Continue even if metadata restoration fails
             }
           }
           
