@@ -58,6 +58,7 @@ export class GoogleDriveService {
     return this.auth.generateAuthUrl({
       access_type: 'offline',
       scope: SCOPES,
+      prompt: 'select_account', // Force account selection every time
     });
   }
 
