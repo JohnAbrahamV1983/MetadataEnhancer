@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit, LogOut, Download, CloudUpload, Search } from "lucide-react";
 import FolderBrowser from "./folder-browser";
 
-
 interface HeaderProps {
   currentFolderId: string;
   onFolderChange: (folderId: string) => void;

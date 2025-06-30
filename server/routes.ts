@@ -598,33 +598,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // OpenAI account balance endpoint
-  app.get("/api/openai/balance", async (req, res) => {
-    try {
-      const balance = await openAIService.getAccountBalance();
-      res.json(balance);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Update OpenAI balance manually (since OpenAI doesn't provide balance API)
-  app.post("/api/openai/balance", async (req, res) => {
-    try {
-      const { balance } = req.body;
-      if (typeof balance !== 'number' || balance < 0) {
-        return res.status(400).json({ message: "Valid balance amount is required" });
-      }
-      
-      // In a real app, you'd store this in a database
-      // For now, we'll update the service directly
-      await openAIService.updateAccountBalance(balance);
-      res.json({ success: true, message: "Balance updated successfully" });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
   // AI search endpoint with recursive folder search
   app.post("/api/search", async (req, res) => {
     try {
