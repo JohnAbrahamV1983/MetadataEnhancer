@@ -29,6 +29,7 @@ export class AgenticSearchService {
         continue;
       }
       processedFolders.add(currentFolderId);
+      console.log(`Agentic Search: Processing folder ${currentFolderId}`);
 
       // First, ensure all files in this folder are discovered and synced to our database
       try {
@@ -114,8 +115,10 @@ export class AgenticSearchService {
         
         // Get subfolders and add them to processing queue
         const subFolders = await googleDriveService.listFolders(currentFolderId);
+        console.log(`Agentic Search: Found ${subFolders.length} subfolders in ${currentFolderId}: ${subFolders.map(f => f.name).join(', ')}`);
         for (const subFolder of subFolders) {
           if (!processedFolders.has(subFolder.id)) {
+            console.log(`Agentic Search: Adding subfolder ${subFolder.name} (${subFolder.id}) to processing queue`);
             foldersToProcess.push(subFolder.id);
           }
         }
@@ -137,12 +140,19 @@ export class AgenticSearchService {
         ? await this.getAllFilesRecursively(folderId)
         : await storage.getAllDriveFiles();
       
+      console.log(`Agentic Search: Found ${allFiles.length} total files for query "${userQuery}"`);
+      allFiles.forEach(file => {
+        console.log(`  - ${file.name} (${file.type}) - Status: ${file.status} - AI Metadata: ${file.aiGeneratedMetadata ? Object.keys(file.aiGeneratedMetadata as any).length : 0} fields`);
+      });
+      
       // Filter files that have been processed and have AI metadata
       const processedFiles = allFiles.filter(file => 
         file.status === 'processed' && 
         file.aiGeneratedMetadata && 
         Object.keys(file.aiGeneratedMetadata as any).length > 0
       );
+
+      console.log(`Agentic Search: Found ${processedFiles.length} processed files with AI metadata`);
 
       // If no processed files, include all files for basic search
       const searchableFiles = processedFiles.length > 0 ? processedFiles : allFiles;
