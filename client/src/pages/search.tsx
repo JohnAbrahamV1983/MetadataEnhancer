@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Search, FolderOpen, Image, Tag, Calendar, ExternalLink } from "lucide-r
 import { type DriveFile } from "@shared/schema";
 import FolderBrowser from "@/components/folder-browser";
 import Header from "@/components/header";
+import Sidebar from "@/components/sidebar";
 
 export default function SearchPage() {
   const [selectedFolderId, setSelectedFolderId] = useState("root");
@@ -75,161 +77,165 @@ export default function SearchPage() {
         onStartProcessing={() => {}}
       />
       
-      {/* Search Interface */}
-      <div className="flex-1 p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          
-          {/* Page Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">AI Image Search</h1>
-            <p className="text-muted-foreground">
-              Search your Google Drive images using AI-generated metadata, descriptions, tags, and more
-            </p>
-          </div>
-          
-          {/* Folder Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FolderOpen className="h-5 w-5" />
-                Search Location
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground mb-2">Currently searching in:</p>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Badge variant="outline" className="px-3 py-1">
-                      {folderName}
-                    </Badge>
-                  </div>
-                  
-                  {/* Analytics Display */}
-                  {analytics && (
-                    <div className="space-y-2 p-3 bg-muted/30 rounded-lg">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Folder Statistics</p>
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Files with AI Tags:</span>
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium">{analytics.filesWithAI}</span>
-                              <span className="text-muted-foreground">/ {analytics.totalFiles}</span>
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
-                                {analytics.filesWithAIPercentage}%
-                              </Badge>
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar />
+        
+        {/* Search Interface */}
+        <div className="flex-1 p-6 overflow-auto">
+          <div className="max-w-4xl mx-auto space-y-6">
+            
+            {/* Page Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-foreground mb-2">AI Image Search</h1>
+              <p className="text-muted-foreground">
+                Search your Google Drive images using AI-generated metadata, descriptions, tags, and more
+              </p>
+            </div>
+            
+            {/* Folder Selection */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FolderOpen className="h-5 w-5" />
+                  Search Location
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground mb-2">Currently searching in:</p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Badge variant="outline" className="px-3 py-1">
+                        {folderName}
+                      </Badge>
+                    </div>
+                    
+                    {/* Analytics Display */}
+                    {analytics && (
+                      <div className="space-y-2 p-3 bg-muted/30 rounded-lg">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Folder Statistics</p>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Files with AI Tags:</span>
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium">{analytics.filesWithAI}</span>
+                                <span className="text-muted-foreground">/ {analytics.totalFiles}</span>
+                                <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                                  {analytics.filesWithAIPercentage}%
+                                </Badge>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">AI Fields Filled:</span>
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium">{analytics.totalFilledFields}</span>
-                              <span className="text-muted-foreground">/ {analytics.totalPossibleFields}</span>
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
-                                {analytics.filledFieldsPercentage}%
-                              </Badge>
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">AI Fields Filled:</span>
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium">{analytics.totalFilledFields}</span>
+                                <span className="text-muted-foreground">/ {analytics.totalPossibleFields}</span>
+                                <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                                  {analytics.filledFieldsPercentage}%
+                                </Badge>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  <Dialog open={showFolderDialog} onOpenChange={setShowFolderDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">
+                        <FolderOpen className="h-4 w-4 mr-2" />
+                        Change Folder
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[70vh]">
+                      <DialogHeader>
+                        <DialogTitle>Select Search Folder</DialogTitle>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <FolderBrowser
+                          selectedFolderId={selectedFolderId}
+                          onFolderSelect={(folderId) => {
+                            setSelectedFolderId(folderId);
+                            setShowFolderDialog(false);
+                            setSearchResults([]); // Clear previous results
+                          }}
+                        />
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
-                <Dialog open={showFolderDialog} onOpenChange={setShowFolderDialog}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">
-                      <FolderOpen className="h-4 w-4 mr-2" />
-                      Change Folder
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[70vh]">
-                    <DialogHeader>
-                      <DialogTitle>Select Search Folder</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <FolderBrowser
-                        selectedFolderId={selectedFolderId}
-                        onFolderSelect={(folderId) => {
-                          setSelectedFolderId(folderId);
-                          setShowFolderDialog(false);
-                          setSearchResults([]); // Clear previous results
-                        }}
-                      />
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Search Bar */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                AI Search Query
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Search for images by description, tags, content, or any metadata..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="flex-1"
-                />
-                <Button 
-                  onClick={handleSearch}
-                  disabled={isSearching || !searchQuery.trim()}
-                >
-                  {isSearching ? "Searching..." : "Search"}
-                </Button>
-              </div>
-              <div className="mt-3">
-                <p className="text-sm text-muted-foreground">
-                  Try searching for: "sunset", "person smiling", "red car", "outdoor scene", etc.
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Searches include all files and subfolders within the selected folder.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Search Results */}
-          {searchResults.length > 0 && (
+            {/* Search Bar */}
             <Card>
               <CardHeader>
-                <CardTitle>Search Results ({searchResults.length} found)</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Search className="h-5 w-5" />
+                  AI Search Query
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[600px]">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {searchResults.map((file) => (
-                      <SearchResultCard key={file.id} file={file} />
-                    ))}
-                  </div>
-                </ScrollArea>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search for images by description, tags, content, or any metadata..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleSearch}
+                    disabled={isSearching || !searchQuery.trim()}
+                  >
+                    {isSearching ? "Searching..." : "Search"}
+                  </Button>
+                </div>
+                <div className="mt-3">
+                  <p className="text-sm text-muted-foreground">
+                    Try searching for: "sunset", "person smiling", "red car", "outdoor scene", etc.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Searches include all files and subfolders within the selected folder.
+                  </p>
+                </div>
               </CardContent>
             </Card>
-          )}
 
-          {searchQuery && searchResults.length === 0 && !isSearching && (
-            <Card>
-              <CardContent className="text-center py-8">
-                <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No images found matching your search.</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Try different keywords or make sure the selected folder contains processed images.
-                </p>
-              </CardContent>
-            </Card>
-          )}
+            {/* Search Results */}
+            {searchResults.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Search Results ({searchResults.length} found)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[600px]">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {searchResults.map((file) => (
+                        <SearchResultCard key={file.id} file={file} />
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            )}
 
+            {searchQuery && searchResults.length === 0 && !isSearching && (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No images found matching your search.</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Try different keywords or make sure the selected folder contains processed images.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+          </div>
         </div>
       </div>
     </div>

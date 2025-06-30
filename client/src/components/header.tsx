@@ -1,6 +1,6 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit, LogOut, Download, CloudUpload, Search } from "lucide-react";
+import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit, LogOut, Download, CloudUpload } from "lucide-react";
 import FolderBrowser from "./folder-browser";
 
 interface HeaderProps {
@@ -21,7 +21,6 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
   const [showFolderDialog, setShowFolderDialog] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [location] = useLocation();
 
   // Check authentication status
   const { data: authStatus, refetch: refetchAuthStatus } = useQuery({
@@ -213,33 +212,9 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
   return (
     <header className="bg-card shadow-sm border-b border-border sticky top-0 z-50">
       <div className="px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <Cloud className="text-primary text-xl" />
-            <h1 className="text-xl font-semibold text-foreground">Metadata Enhancer</h1>
-          </div>
-
-          {/* Navigation */}
-          <div className="flex items-center space-x-2 ml-8">
-            <Link href="/">
-              <Button 
-                variant={location === "/" ? "default" : "ghost"} 
-                size="sm"
-              >
-                <FolderOpen className="h-4 w-4 mr-2" />
-                File Manager
-              </Button>
-            </Link>
-            <Link href="/search">
-              <Button 
-                variant={location === "/search" ? "default" : "ghost"} 
-                size="sm"
-              >
-                <Search className="h-4 w-4 mr-2" />
-                AI Search
-              </Button>
-            </Link>
-          </div>
+        <div className="flex items-center space-x-2">
+          <Cloud className="text-primary text-xl" />
+          <h1 className="text-xl font-semibold text-foreground">Metadata Enhancer</h1>
         </div>
 
         <div className="flex items-center space-x-4">
