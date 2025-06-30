@@ -31,7 +31,7 @@ export default function Sidebar() {
     queryKey: ["/api/templates"],
   });
 
-  const { data: balance, refetch: refetchBalance, isLoading: balanceLoading, error: balanceError } = useQuery({
+  const { data: balance, refetch: refetchBalance, isLoading: balanceLoading, error: balanceError, isFetching } = useQuery({
     queryKey: ["/api/openai/balance"],
     refetchInterval: 30000, // Refresh every 30 seconds
     retry: 2,
@@ -114,64 +114,65 @@ export default function Sidebar() {
               <span className="text-sm font-medium text-muted-foreground">OpenAI Credits</span>
             </div>
             <div className="flex items-center space-x-1">
-              {balanceLoading ? (
-                <div className="w-4 h-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-              ) : (
-                <>
-                  <Dialog open={showBalanceDialog} onOpenChange={setShowBalanceDialog}>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-auto p-0 text-muted-foreground hover:text-foreground"
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Update OpenAI Balance</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                          Enter your current balance from platform.openai.com/settings/organization/billing/overview
-                        </p>
-                        <div className="space-y-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="e.g., 9.68"
-                            value={newBalance}
-                            onChange={(e) => setNewBalance(e.target.value)}
-                          />
-                          <div className="flex justify-end space-x-2">
-                            <Button 
-                              variant="outline" 
-                              onClick={() => setShowBalanceDialog(false)}
-                            >
-                              Cancel
-                            </Button>
-                            <Button 
-                              onClick={handleUpdateBalance}
-                              disabled={updateBalanceMutation.isPending}
-                            >
-                              {updateBalanceMutation.isPending ? "Updating..." : "Update"}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+              <Dialog open={showBalanceDialog} onOpenChange={setShowBalanceDialog}>
+                <DialogTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => refetchBalance()}
                     className="h-auto p-0 text-muted-foreground hover:text-foreground"
                   >
-                    <RefreshCw className="h-3 w-3" />
+                    <Edit className="h-3 w-3" />
                   </Button>
-                </>
-              )}
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Update OpenAI Balance</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Enter your current balance from platform.openai.com/settings/organization/billing/overview
+                    </p>
+                    <div className="space-y-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g., 9.68"
+                        value={newBalance}
+                        onChange={(e) => setNewBalance(e.target.value)}
+                      />
+                      <div className="flex justify-end space-x-2">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setShowBalanceDialog(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          onClick={handleUpdateBalance}
+                          disabled={updateBalanceMutation.isPending}
+                        >
+                          {updateBalanceMutation.isPending ? "Updating..." : "Update"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  refetchBalance();
+                  toast({
+                    title: "Refreshing balance",
+                    description: "Fetching latest balance data...",
+                  });
+                }}
+                disabled={isFetching}
+                className="h-auto p-0 text-muted-foreground hover:text-foreground"
+              >
+                <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
+              </Button>
             </div>
           </div>
           
