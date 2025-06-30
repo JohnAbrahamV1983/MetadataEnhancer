@@ -30,23 +30,73 @@ export class AgenticSearchService {
       }
       processedFolders.add(currentFolderId);
 
-      // Get files in current folder
-      const folderFiles = await storage.getDriveFilesByFolder(currentFolderId);
-      files.push(...folderFiles);
-
-      // Get subfolders and add them to processing queue
+      // First, ensure all files in this folder are discovered and synced to our database
       try {
         const { googleDriveService } = await import('./google-drive');
-        const subFolders = await googleDriveService.listFolders(currentFolderId);
+        const driveFiles = await googleDriveService.listFiles(currentFolderId);
         
+        // Check each file and add to database if not already present
+        for (const driveFile of driveFiles) {
+          let storedFile = await storage.getDriveFileByDriveId(driveFile.id);
+          
+          if (!storedFile) {
+            // File not in database, add it
+            storedFile = await storage.createDriveFile({
+              driveId: driveFile.id,
+              name: driveFile.name,
+              type: googleDriveService.getFileType(driveFile.mimeType),
+              size: parseInt(driveFile.size || '0'),
+              mimeType: driveFile.mimeType,
+              parentFolderId: driveFile.parents?.[0] || currentFolderId,
+              webViewLink: driveFile.webViewLink,
+              thumbnailLink: driveFile.thumbnailLink,
+              createdTime: new Date(driveFile.createdTime),
+              modifiedTime: new Date(driveFile.modifiedTime),
+              status: 'pending'
+            });
+            
+            // Try to restore AI metadata from Google Drive properties
+            try {
+              const metadata = await googleDriveService.getFileMetadata(driveFile.id);
+              if (metadata.properties) {
+                const aiGeneratedMetadata: any = {};
+                let hasAiMetadata = false;
+                
+                for (const [key, value] of Object.entries(metadata.properties)) {
+                  if (key.startsWith('ai_') && value) {
+                    const cleanKey = key.replace('ai_', '');
+                    aiGeneratedMetadata[cleanKey] = value;
+                    hasAiMetadata = true;
+                  }
+                }
+                
+                if (hasAiMetadata) {
+                  storedFile = await storage.updateDriveFile(storedFile.id, {
+                    aiGeneratedMetadata: aiGeneratedMetadata,
+                    status: 'processed'
+                  }) || storedFile;
+                }
+              }
+            } catch (error) {
+              console.log(`Could not restore AI metadata for file ${driveFile.name}:`, error.message);
+            }
+          }
+          
+          files.push(storedFile);
+        }
+        
+        // Get subfolders and add them to processing queue
+        const subFolders = await googleDriveService.listFolders(currentFolderId);
         for (const subFolder of subFolders) {
           if (!processedFolders.has(subFolder.id)) {
             foldersToProcess.push(subFolder.id);
           }
         }
       } catch (error) {
-        console.warn(`Could not access subfolders for ${currentFolderId}:`, error.message);
-        // Continue processing even if we can't access subfolders
+        console.warn(`Could not access folder ${currentFolderId}:`, error.message);
+        // Fallback to database-only search for this folder
+        const folderFiles = await storage.getDriveFilesByFolder(currentFolderId);
+        files.push(...folderFiles);
       }
     }
 
