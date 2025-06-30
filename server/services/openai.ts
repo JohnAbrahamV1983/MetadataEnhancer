@@ -181,4 +181,39 @@ MIME Type: ${mimeType}`
   }
 }
 
+async getAccountBalance(): Promise<{ balance: number; currency: string }> {
+    try {
+      // Note: OpenAI doesn't provide a direct balance endpoint in their API
+      // We'll use the billing usage endpoint to get credit information
+      const response = await fetch('https://api.openai.com/v1/dashboard/billing/credit_grants', {
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || ""}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Calculate remaining balance from grants
+      let totalBalance = 0;
+      if (data.grants && Array.isArray(data.grants)) {
+        totalBalance = data.grants.reduce((sum: number, grant: any) => {
+          return sum + (grant.grant_amount - grant.used_amount);
+        }, 0);
+      }
+
+      return {
+        balance: totalBalance,
+        currency: 'USD'
+      };
+    } catch (error) {
+      throw new Error(`Failed to retrieve account balance: ${error.message}`);
+    }
+  }
+}
+
 export const openAIService = new OpenAIService();

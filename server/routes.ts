@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { googleDriveService } from "./services/google-drive";
 import { fileProcessorService } from "./services/file-processor";
+import { openAIService } from "./services/openai";
 import multer from "multer";
 import csv from "csv-parser";
 import * as XLSX from "xlsx";
@@ -592,6 +593,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         skippedCount,
         errors: errors.length > 0 ? errors : undefined
       });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // OpenAI account balance endpoint
+  app.get("/api/openai/balance", async (req, res) => {
+    try {
+      const balance = await openAIService.getAccountBalance();
+      res.json(balance);
     } catch (error) {
       res.status(500).json({ message: error.message });
     }

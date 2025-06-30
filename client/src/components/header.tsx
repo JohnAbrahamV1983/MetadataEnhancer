@@ -10,6 +10,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit, LogOut, Download, CloudUpload, Search } from "lucide-react";
 import FolderBrowser from "./folder-browser";
+import CreditsDisplay from "./credits-display";
 
 interface HeaderProps {
   currentFolderId: string;
@@ -243,6 +244,8 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
         </div>
 
         <div className="flex items-center space-x-4">
+          <CreditsDisplay />
+          
           {isConnected ? (
             <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-2 px-3 py-1 bg-accent/10 rounded-full">
