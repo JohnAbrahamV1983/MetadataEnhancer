@@ -12,7 +12,7 @@ export default function PropertiesViewer() {
   const [activeFileId, setActiveFileId] = useState("");
 
   const { data: properties, isLoading, error } = useQuery({
-    queryKey: ["/api/drive/properties", activeFileId],
+    queryKey: [`/api/drive/properties/${activeFileId}`],
     enabled: !!activeFileId,
   });
 
