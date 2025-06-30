@@ -179,9 +179,8 @@ MIME Type: ${mimeType}`
       throw new Error(`Failed to generate default metadata: ${error.message}`);
     }
   }
-}
 
-async getAccountBalance(): Promise<{ balance: number; currency: string }> {
+  async getAccountBalance(): Promise<{ balance: number; currency: string }> {
     try {
       // Note: OpenAI doesn't provide a direct balance endpoint in their API
       // We'll use the billing usage endpoint to get credit information
