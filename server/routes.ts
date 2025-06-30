@@ -176,8 +176,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             try {
               const fullMetadata = await googleDriveService.getFileMetadata(driveFile.id);
               const driveProperties = fullMetadata.properties || {};
+              console.log(`Route AI restoration for ${driveFile.name}: properties=`, driveProperties);
               
               if (Object.keys(driveProperties).some(key => key.startsWith('AI_'))) {
+                console.log(`Found AI properties for ${driveFile.name}`);
                 // Reconstruct AI metadata from Google Drive properties
                 const aiGeneratedMetadata: any = {};
                 for (const [key, value] of Object.entries(driveProperties)) {

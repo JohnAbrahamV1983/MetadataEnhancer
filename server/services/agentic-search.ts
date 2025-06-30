@@ -70,11 +70,14 @@ export class AgenticSearchService {
               }
               
               if (properties) {
+                console.log(`Found Google Drive properties for ${driveFile.name}:`, properties);
                 const aiGeneratedMetadata: any = {};
                 let hasAiMetadata = false;
                 
                 for (const [key, value] of Object.entries(properties)) {
+                  console.log(`Checking property: ${key} = ${value}`);
                   if (key.startsWith('AI_') && value) {
+                    console.log(`Found AI property: ${key} = ${value}`);
                     try {
                       // Try to parse JSON values, fallback to string
                       const cleanKey = key.replace('AI_', '');
@@ -97,6 +100,7 @@ export class AgenticSearchService {
                     }
                   }
                 }
+                console.log(`AI metadata restoration result for ${driveFile.name}: hasAiMetadata=${hasAiMetadata}, metadata=`, aiGeneratedMetadata);
                 
                 if (hasAiMetadata) {
                   storedFile = await storage.updateDriveFile(storedFile.id, {
