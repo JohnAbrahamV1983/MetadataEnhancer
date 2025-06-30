@@ -806,7 +806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Agentic Search - AI-powered natural language file search
   app.get("/api/agentic-search", async (req, res) => {
     try {
-      const { q: query } = req.query;
+      const { q: query, folderId } = req.query;
       
       if (!query || typeof query !== 'string') {
         return res.status(400).json({ 
@@ -814,7 +814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const result = await agenticSearchService.performAgenticSearch(query);
+      const result = await agenticSearchService.performAgenticSearch(query, folderId as string);
       res.json(result);
     } catch (error) {
       console.error('Agentic search error:', error);

@@ -13,10 +13,12 @@ interface AgenticSearchResult {
 }
 
 export class AgenticSearchService {
-  async performAgenticSearch(userQuery: string): Promise<AgenticSearchResult> {
+  async performAgenticSearch(userQuery: string, folderId?: string): Promise<AgenticSearchResult> {
     try {
-      // Get all files from storage
-      const allFiles = await storage.getAllDriveFiles();
+      // Get files from storage - filter by folder if specified
+      const allFiles = folderId && folderId !== "root" 
+        ? await storage.getDriveFilesByFolder(folderId)
+        : await storage.getAllDriveFiles();
       
       // Filter files that have been processed and have AI metadata
       const processedFiles = allFiles.filter(file => 
@@ -107,10 +109,12 @@ Return only valid JSON.
       console.error('Agentic search error:', error);
       
       // Fallback to simple keyword search if AI fails
-      const allFiles = await storage.getAllDriveFiles();
+      const fallbackFiles = folderId && folderId !== "root" 
+        ? await storage.getDriveFilesByFolder(folderId)
+        : await storage.getAllDriveFiles();
       const keywords = userQuery.toLowerCase().split(' ');
       
-      const matchingFiles = allFiles.filter(file => {
+      const matchingFiles = fallbackFiles.filter(file => {
         const searchableText = [
           file.name,
           file.type,
