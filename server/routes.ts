@@ -805,6 +805,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to check Google Drive properties
+  app.get("/api/debug/drive-properties/:fileId", async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      const metadata = await googleDriveService.getFileMetadata(fileId);
+      res.json({
+        fileId,
+        properties: metadata.properties || {},
+        name: metadata.name,
+        mimeType: metadata.mimeType
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Agentic Search - AI-powered natural language file search
   app.get("/api/agentic-search", async (req, res) => {
     try {
