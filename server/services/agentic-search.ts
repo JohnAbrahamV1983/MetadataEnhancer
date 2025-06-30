@@ -33,7 +33,9 @@ export class AgenticSearchService {
       // First, ensure all files in this folder are discovered and synced to our database
       try {
         const { googleDriveService } = await import('./google-drive');
+        console.log(`Agentic Search: Processing folder ${currentFolderId}`);
         const driveFiles = await googleDriveService.listFiles(currentFolderId);
+        console.log(`Agentic Search: Found ${driveFiles.length} files in folder ${currentFolderId}`);
         
         // Check each file and add to database if not already present
         for (const driveFile of driveFiles) {
@@ -87,8 +89,10 @@ export class AgenticSearchService {
         
         // Get subfolders and add them to processing queue
         const subFolders = await googleDriveService.listFolders(currentFolderId);
+        console.log(`Agentic Search: Found ${subFolders.length} subfolders in ${currentFolderId}: ${subFolders.map(f => f.name).join(', ')}`);
         for (const subFolder of subFolders) {
           if (!processedFolders.has(subFolder.id)) {
+            console.log(`Agentic Search: Adding subfolder ${subFolder.name} (${subFolder.id}) to processing queue`);
             foldersToProcess.push(subFolder.id);
           }
         }
