@@ -71,11 +71,34 @@ export class AgenticSearchService {
                 const aiGeneratedMetadata: any = {};
                 let hasAiMetadata = false;
                 
+                // Check for AI metadata with multiple possible prefixes (for version compatibility)
+                const possiblePrefixes = ['AI_', 'ai_', 'metadata_', 'generated_'];
+                const aiMetadataFieldNames = ['title', 'subject', 'description', 'detailed_description', 'category', 'quality', 'tags', 'generated_at', 'generated_by'];
+                
                 for (const [key, value] of Object.entries(properties)) {
-                  if (key.startsWith('AI_') && value) {
+                  let foundMatch = false;
+                  let cleanKey = '';
+                  
+                  // Try different prefixes that might have been used in previous versions
+                  for (const prefix of possiblePrefixes) {
+                    if (key.startsWith(prefix)) {
+                      cleanKey = key.replace(prefix, '');
+                      foundMatch = true;
+                      break;
+                    }
+                  }
+                  
+                  // Also check for unprefixed fields that look like AI metadata
+                  if (!foundMatch) {
+                    const lowerKey = key.toLowerCase();
+                    if (aiMetadataFieldNames.some(field => lowerKey.includes(field))) {
+                      cleanKey = key;
+                      foundMatch = true;
+                    }
+                  }
+                  
+                  if (foundMatch && value) {
                     try {
-                      // Try to parse JSON values, fallback to string
-                      const cleanKey = key.replace('AI_', '');
                       // Handle arrays (tags) and other data types
                       if (cleanKey === 'tags' && typeof value === 'string') {
                         try {
@@ -89,7 +112,6 @@ export class AgenticSearchService {
                       hasAiMetadata = true;
                     } catch (parseError) {
                       // If JSON parsing fails, use raw value
-                      const cleanKey = key.replace('AI_', '');
                       aiGeneratedMetadata[cleanKey] = value;
                       hasAiMetadata = true;
                     }
