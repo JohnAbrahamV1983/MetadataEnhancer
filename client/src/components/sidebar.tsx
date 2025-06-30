@@ -16,7 +16,8 @@ import {
   RefreshCw,
   Edit,
   FolderOpen,
-  Search
+  Search,
+  Bot
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -38,6 +39,7 @@ export default function Sidebar() {
   const navigationItems = [
     { id: "file-manager", label: "File Manager", icon: FolderOpen, href: "/" },
     { id: "ai-search", label: "AI Search", icon: Search, href: "/search" },
+    { id: "agentic-search", label: "Agentic Search", icon: Bot, href: "/agentic-search" },
   ];
 
   const tabs = [

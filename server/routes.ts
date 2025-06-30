@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { googleDriveService } from "./services/google-drive";
 import { fileProcessorService } from "./services/file-processor";
 import { openAIService } from "./services/openai";
+import { agenticSearchService } from "./services/agentic-search";
 import multer from "multer";
 import csv from "csv-parser";
 import * as XLSX from "xlsx";
@@ -799,6 +800,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Analytics error:', error);
       res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // Agentic Search - AI-powered natural language file search
+  app.get("/api/agentic-search", async (req, res) => {
+    try {
+      const { q: query } = req.query;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ 
+          error: "Query parameter 'q' is required" 
+        });
+      }
+
+      const result = await agenticSearchService.performAgenticSearch(query);
+      res.json(result);
+    } catch (error) {
+      console.error('Agentic search error:', error);
+      res.status(500).json({ 
+        error: "Failed to perform agentic search",
+        message: (error as Error).message 
+      });
     }
   });
 
