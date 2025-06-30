@@ -435,6 +435,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get file properties from Google Drive (AI metadata)
+  app.get("/api/drive/properties/:fileId", async (req, res) => {
+    try {
+      if (!googleDriveService.isAuthenticated()) {
+        return res.status(401).json({ error: "Not authenticated with Google Drive" });
+      }
+
+      const { fileId } = req.params;
+      const metadata = await googleDriveService.getFileMetadata(fileId);
+      const properties = metadata.properties || {};
+      res.json(properties);
+    } catch (error) {
+      console.error("Error fetching file properties:", error);
+      res.status(500).json({ error: "Failed to fetch file properties" });
+    }
+  });
+
   // Export metadata to Google Drive routes
   app.post("/api/export/file/:id", async (req, res) => {
     try {

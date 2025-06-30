@@ -40,6 +40,7 @@ export default function Sidebar() {
     { id: "file-manager", label: "File Manager", icon: FolderOpen, href: "/" },
     { id: "ai-search", label: "AI Search", icon: Search, href: "/search" },
     { id: "agentic-search", label: "Agentic Search", icon: Bot, href: "/agentic-search" },
+    { id: "properties", label: "Drive Properties", icon: FileText, href: "/properties" },
   ];
 
   const tabs = [

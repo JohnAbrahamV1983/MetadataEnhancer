@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/dashboard";
 import SearchPage from "@/pages/search";
 import AgenticSearchPage from "@/pages/agentic-search";
+import PropertiesViewer from "@/pages/properties-viewer";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -14,6 +15,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/search" component={SearchPage} />
       <Route path="/agentic-search" component={AgenticSearchPage} />
+      <Route path="/properties" component={PropertiesViewer} />
       <Route component={NotFound} />
     </Switch>
   );
