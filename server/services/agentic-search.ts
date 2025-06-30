@@ -13,11 +13,51 @@ interface AgenticSearchResult {
 }
 
 export class AgenticSearchService {
+  async getAllFilesRecursively(folderId: string): Promise<DriveFile[]> {
+    if (folderId === "root") {
+      return await storage.getAllDriveFiles();
+    }
+
+    const files: DriveFile[] = [];
+    const processedFolders = new Set<string>();
+    const foldersToProcess = [folderId];
+
+    while (foldersToProcess.length > 0) {
+      const currentFolderId = foldersToProcess.shift()!;
+      
+      if (processedFolders.has(currentFolderId)) {
+        continue;
+      }
+      processedFolders.add(currentFolderId);
+
+      // Get files in current folder
+      const folderFiles = await storage.getDriveFilesByFolder(currentFolderId);
+      files.push(...folderFiles);
+
+      // Get subfolders and add them to processing queue
+      try {
+        const { googleDriveService } = await import('./google-drive');
+        const subFolders = await googleDriveService.listFolders(currentFolderId);
+        
+        for (const subFolder of subFolders) {
+          if (!processedFolders.has(subFolder.id)) {
+            foldersToProcess.push(subFolder.id);
+          }
+        }
+      } catch (error) {
+        console.warn(`Could not access subfolders for ${currentFolderId}:`, error.message);
+        // Continue processing even if we can't access subfolders
+      }
+    }
+
+    return files;
+  }
+
   async performAgenticSearch(userQuery: string, folderId?: string): Promise<AgenticSearchResult> {
     try {
-      // Get files from storage - filter by folder if specified
+      // Get files from storage - recursively search through folders if specified
       const allFiles = folderId && folderId !== "root" 
-        ? await storage.getDriveFilesByFolder(folderId)
+        ? await this.getAllFilesRecursively(folderId)
         : await storage.getAllDriveFiles();
       
       // Filter files that have been processed and have AI metadata
@@ -110,7 +150,7 @@ Return only valid JSON.
       
       // Fallback to simple keyword search if AI fails
       const fallbackFiles = folderId && folderId !== "root" 
-        ? await storage.getDriveFilesByFolder(folderId)
+        ? await this.getAllFilesRecursively(folderId)
         : await storage.getAllDriveFiles();
       const keywords = userQuery.toLowerCase().split(' ');
       

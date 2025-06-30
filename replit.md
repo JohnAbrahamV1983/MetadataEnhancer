@@ -111,6 +111,7 @@ Changelog:
 - June 28, 2025. Fixed AI metadata persistence - now restores metadata from Google Drive properties on reload
 - June 29, 2025. Added analytics to AI Search - shows percentage and absolute numbers of AI-tagged assets and filled fields per folder
 - June 30, 2025. Added Agentic Search feature - natural language AI-powered file search with intelligent query understanding and semantic matching
+- June 30, 2025. Enhanced Agentic Search with recursive folder searching, improved UI matching AI Search design, and collapsible metadata display
 ```
 
 ## User Preferences

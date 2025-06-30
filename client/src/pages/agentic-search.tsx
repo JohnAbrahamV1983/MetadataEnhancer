@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Search, Bot, FileText, Image, Video, File, ExternalLink, FolderOpen } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Loader2, Search, Bot, FileText, Image, Video, File, ExternalLink, FolderOpen, ChevronDown, ChevronRight } from "lucide-react";
 import { DriveFile } from "@shared/schema";
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
@@ -25,6 +25,7 @@ export default function AgenticSearchPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [currentFolderId, setCurrentFolderId] = useState("root");
   const [showFolderDialog, setShowFolderDialog] = useState(false);
+  const [expandedMetadata, setExpandedMetadata] = useState<Set<number>>(new Set());
 
   const { data: searchResults, isLoading, error } = useQuery({
     queryKey: ["/api/agentic-search", searchQuery, currentFolderId],
@@ -86,6 +87,18 @@ export default function AgenticSearchPage() {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
+
+  const toggleMetadataExpansion = (fileId: number) => {
+    setExpandedMetadata(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(fileId)) {
+        newSet.delete(fileId);
+      } else {
+        newSet.add(fileId);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -172,6 +185,9 @@ export default function AgenticSearchPage() {
                     <DialogContent className="max-w-2xl max-h-[70vh]">
                       <DialogHeader>
                         <DialogTitle>Select Search Folder</DialogTitle>
+                        <DialogDescription>
+                          Choose a folder to search within. Agentic search will look through all files in the selected folder and its subfolders.
+                        </DialogDescription>
                       </DialogHeader>
                       <div className="py-4">
                         <FolderBrowser
@@ -281,64 +297,99 @@ export default function AgenticSearchPage() {
 
                 {/* Results Grid */}
                 {searchResults.files.length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="space-y-4">
                     {searchResults.files.map((file) => (
                       <Card key={file.id} className="hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start space-x-3">
-                            {getFileIcon(file)}
+                        <CardContent className="p-4">
+                          <div className="flex items-start space-x-4">
+                            {/* File Icon/Thumbnail */}
+                            <div className="flex-shrink-0">
+                              {file.thumbnailLink ? (
+                                <img
+                                  src={file.thumbnailLink}
+                                  alt={file.name}
+                                  className="w-16 h-16 object-cover rounded-lg border"
+                                />
+                              ) : (
+                                <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
+                                  {getFileIcon(file)}
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* File Info */}
                             <div className="flex-1 min-w-0">
-                              <CardTitle className="text-sm font-medium truncate">
-                                {file.name}
-                              </CardTitle>
-                              <CardDescription className="text-xs">
-                                {formatFileSize(Number(file.size))} • {file.type}
-                              </CardDescription>
-                            </div>
-                            {file.webViewLink && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                asChild
-                                className="h-auto p-0"
-                              >
-                                <a
-                                  href={file.webViewLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
-                              </Button>
-                            )}
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          {/* AI Generated Metadata */}
-                          {file.aiGeneratedMetadata && Object.keys(file.aiGeneratedMetadata as any).length > 0 && (
-                            <div className="space-y-2">
-                              <p className="text-xs font-medium text-muted-foreground">AI Analysis:</p>
-                              <div className="space-y-1">
-                                {Object.entries(file.aiGeneratedMetadata as any).map(([key, value]) => (
-                                  <div key={key} className="text-xs">
-                                    <span className="font-medium">{key}:</span>{" "}
-                                    <span className="text-muted-foreground">
-                                      {Array.isArray(value) ? value.join(", ") : String(value)}
-                                    </span>
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-medium text-sm truncate">{file.name}</h3>
+                                  <div className="flex items-center space-x-2 mt-1 text-xs text-muted-foreground">
+                                    <span>{formatFileSize(Number(file.size))}</span>
+                                    <span>•</span>
+                                    <span>{file.type}</span>
+                                    <span>•</span>
+                                    <Badge
+                                      variant={file.status === "processed" ? "default" : "secondary"}
+                                      className="text-xs"
+                                    >
+                                      {file.status}
+                                    </Badge>
                                   </div>
-                                ))}
+                                </div>
+                                
+                                {/* Actions */}
+                                <div className="flex items-center space-x-2 ml-2">
+                                  {file.webViewLink && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      asChild
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <a
+                                        href={file.webViewLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        title="Open in Google Drive"
+                                      >
+                                        <ExternalLink className="h-4 w-4" />
+                                      </a>
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
+                              
+                              {/* AI Generated Metadata */}
+                              {file.aiGeneratedMetadata && Object.keys(file.aiGeneratedMetadata as any).length > 0 && (
+                                <div className="mt-3">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleMetadataExpansion(file.id)}
+                                    className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                                  >
+                                    {expandedMetadata.has(file.id) ? (
+                                      <ChevronDown className="h-3 w-3 mr-1" />
+                                    ) : (
+                                      <ChevronRight className="h-3 w-3 mr-1" />
+                                    )}
+                                    AI Analysis ({Object.keys(file.aiGeneratedMetadata as any).length} fields)
+                                  </Button>
+                                  
+                                  {expandedMetadata.has(file.id) && (
+                                    <div className="mt-2 space-y-1 pl-4 border-l-2 border-muted">
+                                      {Object.entries(file.aiGeneratedMetadata as any).map(([key, value]) => (
+                                        <div key={key} className="text-xs">
+                                          <span className="font-medium text-muted-foreground">{key}:</span>{" "}
+                                          <span className="text-foreground">
+                                            {Array.isArray(value) ? value.join(", ") : String(value)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                          )}
-
-                          {/* File Status */}
-                          <div className="mt-3 pt-3 border-t">
-                            <Badge
-                              variant={file.status === "processed" ? "default" : "secondary"}
-                              className="text-xs"
-                            >
-                              {file.status}
-                            </Badge>
                           </div>
                         </CardContent>
                       </Card>
