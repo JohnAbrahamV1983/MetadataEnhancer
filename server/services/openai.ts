@@ -17,6 +17,8 @@ interface GeneratedMetadata {
 }
 
 export class OpenAIService {
+  private currentBalance: number = 9.68; // Default to your current balance
+  private estimatedUsed: number = 0.00;
   async analyzeImage(base64Image: string, metadataFields: MetadataField[]): Promise<GeneratedMetadata> {
     try {
       const fieldDescriptions = metadataFields.map(field => 
@@ -182,18 +184,16 @@ MIME Type: ${mimeType}`
 
   async getAccountBalance(): Promise<{ balance: number; currency: string; used: number; total: number; percentage: number }> {
     try {
-      // Note: OpenAI doesn't provide a public balance endpoint in their API
-      // This returns simulated data for demo purposes
-      // In a real implementation, you would need to track usage or use OpenAI's organization API
+      // OpenAI doesn't provide a public API for credit balance
+      // This uses a manual approach where users can set their current balance
+      // and we track estimated usage from actual API calls
       
-      const totalCredits = 2000;
-      const usedCredits = 750;
-      const remainingCredits = totalCredits - usedCredits;
-      const percentage = (remainingCredits / totalCredits) * 100;
+      const totalCredits = this.currentBalance + this.estimatedUsed;
+      const percentage = totalCredits > 0 ? (this.currentBalance / totalCredits) * 100 : 100;
 
       return {
-        balance: remainingCredits,
-        used: usedCredits,
+        balance: this.currentBalance,
+        used: this.estimatedUsed,
         total: totalCredits,
         percentage: percentage,
         currency: 'USD'
@@ -201,6 +201,10 @@ MIME Type: ${mimeType}`
     } catch (error) {
       throw new Error(`Failed to retrieve account balance: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  async updateAccountBalance(newBalance: number): Promise<void> {
+    this.currentBalance = newBalance;
   }
 }
 

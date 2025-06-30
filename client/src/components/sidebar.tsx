@@ -1,18 +1,27 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Folder, 
   Clock, 
   FileText, 
   BarChart3,
   RefreshCw,
-  DollarSign
+  DollarSign,
+  Edit
 } from "lucide-react";
 
 export default function Sidebar() {
   const [activeTab, setActiveTab] = useState("files");
+  const [showBalanceDialog, setShowBalanceDialog] = useState(false);
+  const [newBalance, setNewBalance] = useState("");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: jobs } = useQuery({
     queryKey: ["/api/jobs"],
@@ -28,6 +37,42 @@ export default function Sidebar() {
     retry: 2,
     staleTime: 10000, // Consider data stale after 10 seconds
   });
+
+  const updateBalanceMutation = useMutation({
+    mutationFn: async (balance: number) => {
+      const response = await apiRequest("POST", "/api/openai/balance", { balance });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Balance updated",
+        description: "Your OpenAI balance has been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/openai/balance"] });
+      setShowBalanceDialog(false);
+      setNewBalance("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleUpdateBalance = () => {
+    const balanceValue = parseFloat(newBalance);
+    if (isNaN(balanceValue) || balanceValue < 0) {
+      toast({
+        title: "Invalid balance",
+        description: "Please enter a valid positive number.",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateBalanceMutation.mutate(balanceValue);
+  };
 
   const tabs = [
     { id: "files", label: "File Browser", icon: Folder },
@@ -72,14 +117,60 @@ export default function Sidebar() {
               {balanceLoading ? (
                 <div className="w-4 h-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
               ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => refetchBalance()}
-                  className="h-auto p-0 text-muted-foreground hover:text-foreground"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                </Button>
+                <>
+                  <Dialog open={showBalanceDialog} onOpenChange={setShowBalanceDialog}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Update OpenAI Balance</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Enter your current balance from platform.openai.com/settings/organization/billing/overview
+                        </p>
+                        <div className="space-y-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="e.g., 9.68"
+                            value={newBalance}
+                            onChange={(e) => setNewBalance(e.target.value)}
+                          />
+                          <div className="flex justify-end space-x-2">
+                            <Button 
+                              variant="outline" 
+                              onClick={() => setShowBalanceDialog(false)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              onClick={handleUpdateBalance}
+                              disabled={updateBalanceMutation.isPending}
+                            >
+                              {updateBalanceMutation.isPending ? "Updating..." : "Update"}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => refetchBalance()}
+                    className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </Button>
+                </>
               )}
             </div>
           </div>
