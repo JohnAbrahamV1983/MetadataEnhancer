@@ -137,7 +137,7 @@ export default function Sidebar() {
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder="e.g., 9.68"
+                        placeholder="9.68"
                         value={newBalance}
                         onChange={(e) => setNewBalance(e.target.value)}
                       />
@@ -162,40 +162,16 @@ export default function Sidebar() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={async () => {
+                onClick={() => {
                   toast({
-                    title: "Refreshing balance",
-                    description: "Fetching latest balance data...",
+                    title: "Balance Not Auto-Fetchable",
+                    description: "OpenAI doesn't provide API access to credit balances. Please use the edit button to manually update your balance from platform.openai.com",
+                    duration: 5000,
                   });
-                  
-                  try {
-                    // Force invalidate cache first, then refetch
-                    await queryClient.invalidateQueries({ queryKey: ["/api/openai/balance"] });
-                    const result = await refetchBalance();
-                    
-                    if (result.data) {
-                      toast({
-                        title: "Balance refreshed",
-                        description: `Updated: $${result.data.balance?.toFixed(2)}`,
-                      });
-                    } else {
-                      toast({
-                        title: "Refresh complete",
-                        description: "Balance data updated",
-                      });
-                    }
-                  } catch (error) {
-                    toast({
-                      title: "Refresh failed",
-                      description: "Could not update balance",
-                      variant: "destructive",
-                    });
-                  }
                 }}
-                disabled={isFetching}
                 className="h-auto p-0 text-muted-foreground hover:text-foreground"
               >
-                <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
+                <RefreshCw className="h-3 w-3" />
               </Button>
             </div>
           </div>

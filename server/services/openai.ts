@@ -17,7 +17,7 @@ interface GeneratedMetadata {
 }
 
 export class OpenAIService {
-  private currentBalance: number = 9.68; // Default to your current balance
+  private currentBalance: number = 9.68; // Default to current balance from platform.openai.com
   private estimatedUsed: number = 0.00;
   private lastUpdated: Date = new Date();
   async analyzeImage(base64Image: string, metadataFields: MetadataField[]): Promise<GeneratedMetadata> {
