@@ -809,15 +809,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/debug/drive-properties/:fileId", async (req, res) => {
     try {
       const { fileId } = req.params;
+      console.log(`DEBUG: Getting properties for file ${fileId}`);
       const metadata = await googleDriveService.getFileMetadata(fileId);
-      res.json({
+      console.log(`DEBUG: File ${fileId} properties:`, metadata.properties);
+      const response = {
         fileId,
         properties: metadata.properties || {},
         name: metadata.name,
         mimeType: metadata.mimeType
-      });
+      };
+      console.log(`DEBUG: Returning response:`, response);
+      res.json(response);
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      console.log(`DEBUG: Error getting properties for ${req.params.fileId}:`, (error as Error).message);
+      res.status(500).json({ message: (error as Error).message });
     }
   });
 
