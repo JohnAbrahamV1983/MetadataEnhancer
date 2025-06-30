@@ -22,7 +22,8 @@ import {
   AlertCircle,
   RefreshCw,
   Folder,
-  CloudUpload
+  CloudUpload,
+  Copy
 } from "lucide-react";
 
 interface FileGridProps {
@@ -44,6 +45,22 @@ export default function FileGrid({
   const [filter, setFilter] = useState("all");
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
   const { toast } = useToast();
+
+  const copyFileId = async (fileId: string, fileName: string) => {
+    try {
+      await navigator.clipboard.writeText(fileId);
+      toast({
+        title: "File ID Copied",
+        description: `Copied ${fileName} file ID to clipboard`,
+      });
+    } catch (error) {
+      toast({
+        title: "Copy Failed",
+        description: "Unable to copy file ID to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
 
   const processFileMutation = useMutation({
     mutationFn: async (fileId: number) => {
@@ -412,6 +429,18 @@ export default function FileGrid({
                         />
                       </div>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyFileId(file.driveId, file.name);
+                      }}
+                      className="absolute top-2 right-2 h-8 w-8 p-0 bg-white/90 hover:bg-white border shadow-sm"
+                      title={`Copy file ID for ${file.name}`}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
                   </div>
                   <div className="space-y-2">
                     <p className="font-medium text-sm text-foreground truncate" title={file.name}>
