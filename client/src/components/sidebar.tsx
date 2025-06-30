@@ -35,7 +35,8 @@ export default function Sidebar() {
     queryKey: ["/api/openai/balance"],
     refetchInterval: 30000, // Refresh every 30 seconds
     retry: 2,
-    staleTime: 10000, // Consider data stale after 10 seconds
+    staleTime: 0, // Always consider data stale to force refresh
+    gcTime: 0, // Don't cache data
   });
 
   const updateBalanceMutation = useMutation({
@@ -111,7 +112,7 @@ export default function Sidebar() {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">OpenAI Credits</span>
+              <span className="text-sm font-medium text-muted-foreground">$ OpenAI Credits Available</span>
             </div>
             <div className="flex items-center space-x-1">
               <Dialog open={showBalanceDialog} onOpenChange={setShowBalanceDialog}>
@@ -161,12 +162,18 @@ export default function Sidebar() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  refetchBalance();
+                onClick={async () => {
                   toast({
                     title: "Refreshing balance",
                     description: "Fetching latest balance data...",
                   });
+                  const result = await refetchBalance();
+                  if (result.data) {
+                    toast({
+                      title: "Balance refreshed",
+                      description: `Current balance: $${result.data.balance?.toFixed(2)}`,
+                    });
+                  }
                 }}
                 disabled={isFetching}
                 className="h-auto p-0 text-muted-foreground hover:text-foreground"
@@ -186,21 +193,14 @@ export default function Sidebar() {
               <div className="h-2 bg-muted-foreground/20 animate-pulse rounded" />
             </div>
           ) : balance ? (
-            <>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-lg font-bold text-green-600">
-                  ${balance.balance?.toFixed(2) || '0.00'}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {balance.currency || 'USD'}
-                </span>
-              </div>
-              <Progress value={balance.percentage || 0} className="h-2" />
-              <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>Used: ${balance.used?.toFixed(2) || '0.00'}</span>
-                <span>Total: ${balance.total?.toFixed(2) || '0.00'}</span>
-              </div>
-            </>
+            <div className="flex items-center justify-between">
+              <span className="text-lg font-bold text-green-600">
+                ${balance.balance?.toFixed(2) || '0.00'}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {balance.currency || 'USD'}
+              </span>
+            </div>
           ) : (
             <div className="text-xs text-muted-foreground">
               No balance data available
