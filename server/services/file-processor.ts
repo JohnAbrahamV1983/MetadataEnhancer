@@ -102,13 +102,23 @@ export class FileProcessorService {
       const driveMetadata = await googleDriveService.getFileMetadata(file.driveId);
       
       let thumbnailBase64: string | undefined;
+      
+      // Try to get thumbnail from Google Drive
       if (file.thumbnailLink) {
         try {
-          // Note: In a real implementation, you'd need to fetch the thumbnail
-          // For now, we'll process without thumbnail
-          thumbnailBase64 = undefined;
+          const thumbnailResponse = await fetch(file.thumbnailLink, {
+            headers: {
+              'Authorization': `Bearer ${await googleDriveService.getAccessToken()}`
+            }
+          });
+          
+          if (thumbnailResponse.ok) {
+            const thumbnailBuffer = Buffer.from(await thumbnailResponse.arrayBuffer());
+            thumbnailBase64 = thumbnailBuffer.toString('base64');
+            console.log(`Successfully fetched thumbnail for video: ${file.name}`);
+          }
         } catch (error) {
-          console.warn('Could not fetch video thumbnail:', error.message);
+          console.warn('Could not fetch video thumbnail:', (error as Error).message);
         }
       }
 
@@ -119,8 +129,18 @@ export class FileProcessorService {
         { name: 'mood', description: 'Mood or tone of the video', type: 'text' }
       ];
 
+      // Enhanced video metadata context
+      const videoContext = {
+        ...driveMetadata.videoMediaMetadata,
+        fileName: file.name,
+        fileSize: driveMetadata.size,
+        createdTime: file.createdTime,
+        modifiedTime: file.modifiedTime,
+        mimeType: file.mimeType
+      };
+
       return await openAIService.analyzeVideo(
-        driveMetadata.videoMediaMetadata || {},
+        videoContext,
         thumbnailBase64,
         metadataFields
       );

@@ -103,13 +103,30 @@ For each field, provide appropriate values based on the document content. For 't
       let messages: any[] = [
         {
           role: "system",
-          content: `You are an expert video analyst. Analyze the provided video metadata${thumbnailBase64 ? ' and thumbnail' : ''} to generate metadata based on the specified fields. Return your response as JSON with the field names as keys.
+          content: `You are an expert video content analyst. Your task is to analyze video files and generate meaningful metadata based on available information.
 
-${fieldDescriptions ? `Metadata Fields:\n${fieldDescriptions}` : 'Generate appropriate metadata including description, keywords, category, and mood.'}
+${fieldDescriptions ? `Required Metadata Fields:\n${fieldDescriptions}\n` : 'Generate comprehensive metadata including description, keywords, category, and mood.\n'}
 
-For each field, provide appropriate values based on the video information. For 'tags' type fields, return an array of relevant tags.`
+Analysis Guidelines:
+- If a thumbnail is provided, analyze the visual content thoroughly
+- Use filename patterns to infer content type (e.g., "meeting", "presentation", "tutorial", "demo")
+- Consider video duration to determine content type (short clips vs. long content)
+- For technical metadata like resolution/duration, incorporate this into your analysis
+- Generate specific, descriptive keywords rather than generic ones
+- Be specific about what you can observe rather than making broad assumptions
+
+Return your response as JSON with the field names as keys.`
         }
       ];
+
+      const videoInfo = {
+        filename: metadata.fileName || 'Unknown',
+        duration: metadata.durationMillis ? `${Math.round(metadata.durationMillis / 1000 / 60)} minutes` : 'Unknown duration',
+        dimensions: metadata.width && metadata.height ? `${metadata.width}x${metadata.height}` : 'Unknown resolution',
+        fileSize: metadata.fileSize ? `${Math.round(metadata.fileSize / 1024 / 1024)} MB` : 'Unknown size',
+        createdTime: metadata.createdTime || 'Unknown',
+        mimeType: metadata.mimeType || 'Unknown'
+      };
 
       if (thumbnailBase64) {
         messages.push({
@@ -117,7 +134,17 @@ For each field, provide appropriate values based on the video information. For '
           content: [
             {
               type: "text",
-              text: `Analyze this video based on its metadata and thumbnail:\n\nMetadata: ${JSON.stringify(metadata, null, 2)}`
+              text: `Analyze this video file. Pay special attention to the thumbnail image which shows a frame from the video content.
+
+Video Information:
+- Filename: ${videoInfo.filename}
+- Duration: ${videoInfo.duration}
+- Resolution: ${videoInfo.dimensions}
+- File Size: ${videoInfo.fileSize}
+- Created: ${videoInfo.createdTime}
+- Type: ${videoInfo.mimeType}
+
+Based on the thumbnail and video information, provide detailed and specific metadata. Focus on what you can actually see in the thumbnail rather than generic assumptions.`
             },
             {
               type: "image_url",
@@ -130,7 +157,19 @@ For each field, provide appropriate values based on the video information. For '
       } else {
         messages.push({
           role: "user",
-          content: `Analyze this video based on its metadata:\n\n${JSON.stringify(metadata, null, 2)}`
+          content: `Analyze this video file based on the available metadata and filename patterns:
+
+Video Information:
+- Filename: ${videoInfo.filename}
+- Duration: ${videoInfo.duration}
+- Resolution: ${videoInfo.dimensions}
+- File Size: ${videoInfo.fileSize}
+- Created: ${videoInfo.createdTime}
+- Type: ${videoInfo.mimeType}
+
+Technical Metadata: ${JSON.stringify(metadata, null, 2)}
+
+Note: No thumbnail is available. Base your analysis on the filename, technical properties, and any patterns you can identify. Be specific about what you can infer from the available information.`
         });
       }
 
