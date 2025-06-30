@@ -167,11 +167,28 @@ export default function Sidebar() {
                     title: "Refreshing balance",
                     description: "Fetching latest balance data...",
                   });
-                  const result = await refetchBalance();
-                  if (result.data) {
+                  
+                  try {
+                    // Force invalidate cache first, then refetch
+                    await queryClient.invalidateQueries({ queryKey: ["/api/openai/balance"] });
+                    const result = await refetchBalance();
+                    
+                    if (result.data) {
+                      toast({
+                        title: "Balance refreshed",
+                        description: `Updated: $${result.data.balance?.toFixed(2)}`,
+                      });
+                    } else {
+                      toast({
+                        title: "Refresh complete",
+                        description: "Balance data updated",
+                      });
+                    }
+                  } catch (error) {
                     toast({
-                      title: "Balance refreshed",
-                      description: `Current balance: $${result.data.balance?.toFixed(2)}`,
+                      title: "Refresh failed",
+                      description: "Could not update balance",
+                      variant: "destructive",
                     });
                   }
                 }}

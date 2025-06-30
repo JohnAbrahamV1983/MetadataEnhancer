@@ -19,6 +19,7 @@ interface GeneratedMetadata {
 export class OpenAIService {
   private currentBalance: number = 9.68; // Default to your current balance
   private estimatedUsed: number = 0.00;
+  private lastUpdated: Date = new Date();
   async analyzeImage(base64Image: string, metadataFields: MetadataField[]): Promise<GeneratedMetadata> {
     try {
       const fieldDescriptions = metadataFields.map(field => 
@@ -182,7 +183,7 @@ MIME Type: ${mimeType}`
     }
   }
 
-  async getAccountBalance(): Promise<{ balance: number; currency: string; used: number; total: number; percentage: number }> {
+  async getAccountBalance(): Promise<{ balance: number; currency: string; used: number; total: number; percentage: number; lastUpdated: string }> {
     try {
       // OpenAI doesn't provide a public API for credit balance
       // This uses a manual approach where users can set their current balance
@@ -196,7 +197,8 @@ MIME Type: ${mimeType}`
         used: this.estimatedUsed,
         total: totalCredits,
         percentage: percentage,
-        currency: 'USD'
+        currency: 'USD',
+        lastUpdated: this.lastUpdated.toISOString()
       };
     } catch (error) {
       throw new Error(`Failed to retrieve account balance: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -205,6 +207,7 @@ MIME Type: ${mimeType}`
 
   async updateAccountBalance(newBalance: number): Promise<void> {
     this.currentBalance = newBalance;
+    this.lastUpdated = new Date();
   }
 }
 
