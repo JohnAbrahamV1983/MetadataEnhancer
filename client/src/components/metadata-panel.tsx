@@ -1,14 +1,17 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { apiRequest } from "@/lib/queryClient";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type DriveFile } from "@shared/schema";
-import { RefreshCw, Monitor, Upload, CheckCircle } from "lucide-react";
+import { RefreshCw, Monitor, Upload, CheckCircle, Edit3, Save, X } from "lucide-react";
 
 interface MetadataPanelProps {
   file: DriveFile | null;
@@ -17,6 +20,8 @@ interface MetadataPanelProps {
 
 export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps) {
   const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedMetadata, setEditedMetadata] = useState<any>(null);
 
 
 
@@ -64,6 +69,35 @@ export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps
     },
   });
 
+  const saveMetadataMutation = useMutation({
+    mutationFn: async (metadata: any) => {
+      if (!file) throw new Error("No file selected");
+      
+      const response = await apiRequest("PATCH", `/api/files/${file.id}`, {
+        aiGeneratedMetadata: metadata
+      });
+      return response.json();
+    },
+    onSuccess: (updatedFile) => {
+      toast({
+        title: "Metadata saved",
+        description: "Your changes have been saved successfully.",
+      });
+      onFileUpdate(updatedFile);
+      setIsEditing(false);
+      setEditedMetadata(null);
+      // Invalidate the query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/files'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Save failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   if (!file) {
     return (
       <aside className="w-80 bg-card shadow-sm border-l border-border flex flex-col">
@@ -97,6 +131,39 @@ export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps
         ))}
       </div>
     );
+  };
+
+  // Initialize editing state with current metadata
+  const handleStartEditing = () => {
+    setEditedMetadata(file?.aiGeneratedMetadata || {});
+    setIsEditing(true);
+  };
+
+  const handleCancelEditing = () => {
+    setIsEditing(false);
+    setEditedMetadata(null);
+  };
+
+  const handleSaveMetadata = () => {
+    if (editedMetadata) {
+      saveMetadataMutation.mutate(editedMetadata);
+    }
+  };
+
+  const updateMetadataField = (field: string, value: string) => {
+    setEditedMetadata((prev: any) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const updateMetadataArrayField = (field: string, value: string) => {
+    // Split by comma and trim whitespace
+    const arrayValue = value.split(',').map(item => item.trim()).filter(item => item.length > 0);
+    setEditedMetadata((prev: any) => ({
+      ...prev,
+      [field]: arrayValue
+    }));
   };
 
   return (
@@ -156,50 +223,139 @@ export default function MetadataPanel({ file, onFileUpdate }: MetadataPanelProps
           </Card>
 
           {/* AI-Generated Metadata */}
-          {file.aiGeneratedMetadata && Object.keys(file.aiGeneratedMetadata).length > 0 && (
+          {(file.aiGeneratedMetadata && Object.keys(file.aiGeneratedMetadata).length > 0) && (
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">AI-Generated Metadata</CardTitle>
-                  <Badge variant="secondary" className="bg-accent/20 text-accent">Generated</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="bg-accent/20 text-accent">Generated</Badge>
+                    {!isEditing && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleStartEditing}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {Object.entries(file.aiGeneratedMetadata).map(([key, value]) => {
-                  if (!value) return null;
-                  
-                  // Handle different field types
-                  const fieldName = key.charAt(0).toUpperCase() + key.slice(1);
-                  
-                  if (Array.isArray(value) || (typeof value === 'string' && value.includes(';'))) {
-                    // Handle tags/keywords fields
-                    const items = Array.isArray(value) ? value : value.split(';').map(s => s.trim()).filter(Boolean);
-                    return (
-                      <div key={key}>
-                        <Label className="text-sm text-muted-foreground mb-2 block">{fieldName}</Label>
-                        {renderKeywords(items)}
-                      </div>
-                    );
-                  } else if (key.toLowerCase().includes('description') || key.toLowerCase().includes('subject')) {
-                    // Handle description fields with styled background
-                    return (
-                      <div key={key}>
-                        <Label className="text-sm text-muted-foreground">{fieldName}</Label>
-                        <p className="text-sm text-foreground bg-muted p-3 rounded-lg mt-1">
-                          {String(value)}
-                        </p>
-                      </div>
-                    );
-                  } else {
-                    // Handle regular text fields
-                    return (
-                      <div key={key}>
-                        <Label className="text-sm text-muted-foreground">{fieldName}</Label>
-                        <p className="text-sm text-foreground">{String(value)}</p>
-                      </div>
-                    );
-                  }
-                })}
+                {isEditing ? (
+                  <>
+                    {/* Editing Mode */}
+                    {Object.entries(editedMetadata || {}).map(([key, value]) => {
+                      const fieldName = key.charAt(0).toUpperCase() + key.slice(1);
+                      
+                      if (Array.isArray(value) || (typeof value === 'string' && value.includes(','))) {
+                        // Handle tags/keywords fields
+                        const items = Array.isArray(value) ? value : value.split(',').map(s => s.trim()).filter(Boolean);
+                        return (
+                          <div key={key}>
+                            <Label className="text-sm text-muted-foreground mb-2 block">{fieldName}</Label>
+                            <Input
+                              value={Array.isArray(value) ? value.join(', ') : value}
+                              onChange={(e) => updateMetadataArrayField(key, e.target.value)}
+                              placeholder="Enter tags separated by commas"
+                              className="text-sm"
+                            />
+                          </div>
+                        );
+                      } else if (key.toLowerCase().includes('description') || key.toLowerCase().includes('subject')) {
+                        // Handle description fields
+                        return (
+                          <div key={key}>
+                            <Label className="text-sm text-muted-foreground mb-2 block">{fieldName}</Label>
+                            <Textarea
+                              value={String(value)}
+                              onChange={(e) => updateMetadataField(key, e.target.value)}
+                              placeholder="Enter description"
+                              className="text-sm min-h-[80px]"
+                            />
+                          </div>
+                        );
+                      } else {
+                        // Handle regular text fields
+                        return (
+                          <div key={key}>
+                            <Label className="text-sm text-muted-foreground mb-2 block">{fieldName}</Label>
+                            <Input
+                              value={String(value)}
+                              onChange={(e) => updateMetadataField(key, e.target.value)}
+                              placeholder={`Enter ${fieldName.toLowerCase()}`}
+                              className="text-sm"
+                            />
+                          </div>
+                        );
+                      }
+                    })}
+                    
+                    {/* Save/Cancel buttons */}
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        size="sm"
+                        onClick={handleSaveMetadata}
+                        disabled={saveMetadataMutation.isPending}
+                        className="flex items-center gap-1"
+                      >
+                        <Save className="h-3 w-3" />
+                        {saveMetadataMutation.isPending ? 'Saving...' : 'Save'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCancelEditing}
+                        disabled={saveMetadataMutation.isPending}
+                        className="flex items-center gap-1"
+                      >
+                        <X className="h-3 w-3" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Display Mode */}
+                    {Object.entries(file.aiGeneratedMetadata || {}).map(([key, value]) => {
+                      if (!value) return null;
+                      
+                      // Handle different field types
+                      const fieldName = key.charAt(0).toUpperCase() + key.slice(1);
+                      
+                      if (Array.isArray(value) || (typeof value === 'string' && value.includes(';'))) {
+                        // Handle tags/keywords fields
+                        const items = Array.isArray(value) ? value : value.split(';').map(s => s.trim()).filter(Boolean);
+                        return (
+                          <div key={key}>
+                            <Label className="text-sm text-muted-foreground mb-2 block">{fieldName}</Label>
+                            {renderKeywords(items)}
+                          </div>
+                        );
+                      } else if (key.toLowerCase().includes('description') || key.toLowerCase().includes('subject')) {
+                        // Handle description fields with styled background
+                        return (
+                          <div key={key}>
+                            <Label className="text-sm text-muted-foreground">{fieldName}</Label>
+                            <p className="text-sm text-foreground bg-muted p-3 rounded-lg mt-1">
+                              {String(value)}
+                            </p>
+                          </div>
+                        );
+                      } else {
+                        // Handle regular text fields
+                        return (
+                          <div key={key}>
+                            <Label className="text-sm text-muted-foreground">{fieldName}</Label>
+                            <p className="text-sm text-foreground">{String(value)}</p>
+                          </div>
+                        );
+                      }
+                    })}
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
