@@ -269,6 +269,55 @@ ${audioContext.transcript && audioContext.transcript !== 'Transcription not avai
     }
   }
 
+  async analyzeDocumentByContext(context: any, metadataFields: MetadataField[]): Promise<GeneratedMetadata> {
+    try {
+      const fieldDescriptions = metadataFields
+        .map(field => `- ${field.name}: ${field.description}`)
+        .join('\n');
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert document analyst. Analyze file information and generate comprehensive metadata based on filename, file properties, and context clues.
+
+${fieldDescriptions ? `Required Metadata Fields:\n${fieldDescriptions}\n` : 'Generate comprehensive metadata including description, keywords, category, and subject.\n'}
+
+Analysis Guidelines:
+- Extract meaningful information from the filename and file properties
+- Infer document type, subject matter, and likely content from naming conventions
+- Generate relevant keywords based on filename components
+- Determine appropriate categories and classifications
+- Be specific and analytical in your assessment
+
+Return your response as JSON with the field names as keys.`
+          },
+          {
+            role: "user",
+            content: `Analyze this document and generate metadata:
+
+File Information:
+- Filename: ${context.filename}
+- File Size: ${context.fileSize} bytes
+- MIME Type: ${context.mimeType}
+- File Type: ${context.fileType}
+- Created: ${context.createdTime}
+- Modified: ${context.modifiedTime}
+
+Based on the filename and file properties, provide intelligent metadata analysis.`
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 800,
+      });
+
+      return JSON.parse(response.choices[0].message.content || '{}');
+    } catch (error) {
+      throw new Error(`Failed to analyze document by context: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async generateDefaultMetadata(fileName: string, fileType: string, mimeType: string): Promise<GeneratedMetadata> {
     try {
       const response = await openai.chat.completions.create({
