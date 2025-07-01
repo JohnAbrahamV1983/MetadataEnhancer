@@ -77,13 +77,28 @@ export class FileProcessorService {
 
   private async processPDF(file: DriveFile, template?: MetadataTemplate): Promise<any> {
     try {
+      console.log(`Processing PDF: ${file.name} (${file.driveId})`);
+      
       // Get PDF content and extract text
       const pdfBuffer = await googleDriveService.getFileContent(file.driveId);
+      console.log(`PDF buffer size: ${pdfBuffer.length} bytes`);
+      
+      if (pdfBuffer.length === 0) {
+        throw new Error('PDF file is empty or could not be downloaded');
+      }
       
       // Dynamically import pdf-parse to avoid startup issues
       const pdf = await import('pdf-parse');
+      console.log('PDF-parse imported successfully');
+      
       const pdfData = await pdf.default(pdfBuffer);
       const text = pdfData.text;
+      console.log(`Extracted text length: ${text.length} characters`);
+      
+      if (!text || text.trim().length === 0) {
+        console.log('No text extracted from PDF, generating metadata based on filename');
+        return await openAIService.generateDefaultMetadata(file.name, file.type, file.mimeType);
+      }
 
       const metadataFields = template?.fields as any[] || [
         { name: 'description', description: 'Summary of the document content', type: 'text' },
@@ -94,7 +109,8 @@ export class FileProcessorService {
 
       return await openAIService.analyzePDF(text, metadataFields);
     } catch (error) {
-      throw new Error(`Failed to process PDF: ${error.message}`);
+      console.error(`PDF processing error for ${file.name}:`, error);
+      throw new Error(`Failed to process PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
