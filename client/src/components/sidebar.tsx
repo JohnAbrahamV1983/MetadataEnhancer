@@ -44,7 +44,6 @@ export default function Sidebar() {
   ];
 
   const tabs = [
-    { id: "files", label: "File Browser", icon: Folder },
     { id: "queue", label: "Processing Queue", icon: Clock },
     { id: "templates", label: "Metadata Templates", icon: FileText },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
