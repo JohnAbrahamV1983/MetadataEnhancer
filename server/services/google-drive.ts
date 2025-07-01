@@ -208,9 +208,43 @@ export class GoogleDriveService {
   }
 
   getFileType(mimeType: string): string {
+    // Images
     if (mimeType.startsWith('image/')) return 'image';
+    
+    // Videos
     if (mimeType.startsWith('video/')) return 'video';
+    
+    // Audio files
+    if (mimeType.startsWith('audio/')) return 'audio';
+    
+    // PDF files
     if (mimeType === 'application/pdf') return 'pdf';
+    
+    // Microsoft Office documents
+    if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+        mimeType === 'application/msword') return 'document';
+    
+    // Microsoft Excel files
+    if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+        mimeType === 'application/vnd.ms-excel') return 'spreadsheet';
+    
+    // Microsoft PowerPoint files
+    if (mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || 
+        mimeType === 'application/vnd.ms-powerpoint') return 'presentation';
+    
+    // Google Workspace files
+    if (mimeType === 'application/vnd.google-apps.document') return 'document';
+    if (mimeType === 'application/vnd.google-apps.spreadsheet') return 'spreadsheet';
+    if (mimeType === 'application/vnd.google-apps.presentation') return 'presentation';
+    
+    // Text files
+    if (mimeType.startsWith('text/')) return 'text';
+    
+    // Archive files
+    if (mimeType === 'application/zip' || 
+        mimeType === 'application/x-rar-compressed' || 
+        mimeType === 'application/x-7z-compressed') return 'archive';
+    
     return 'other';
   }
 

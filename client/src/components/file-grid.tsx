@@ -15,6 +15,10 @@ import {
   FileVideo,
   FileText,
   File,
+  FileAudio,
+  FileSpreadsheet,
+  Presentation,
+  Archive,
   MoreVertical,
   CheckCircle,
   Clock,
@@ -123,8 +127,20 @@ export default function FileGrid({
         return <FileImage className={`${iconSize} text-blue-600`} />;
       case 'video':
         return <FileVideo className={`${iconSize} text-purple-600`} />;
+      case 'audio':
+        return <FileAudio className={`${iconSize} text-green-600`} />;
       case 'pdf':
         return <FileText className={`${iconSize} text-red-600`} />;
+      case 'document':
+        return <FileText className={`${iconSize} text-blue-800`} />;
+      case 'spreadsheet':
+        return <FileSpreadsheet className={`${iconSize} text-green-700`} />;
+      case 'presentation':
+        return <Presentation className={`${iconSize} text-orange-600`} />;
+      case 'text':
+        return <FileText className={`${iconSize} text-gray-700`} />;
+      case 'archive':
+        return <Archive className={`${iconSize} text-yellow-600`} />;
       default:
         return <File className={`${iconSize} text-gray-600`} />;
     }
@@ -147,7 +163,13 @@ export default function FileGrid({
     const colors = {
       image: "bg-blue-100 text-blue-800",
       video: "bg-purple-100 text-purple-800",
+      audio: "bg-green-100 text-green-800",
       pdf: "bg-red-100 text-red-800",
+      document: "bg-blue-100 text-blue-900",
+      spreadsheet: "bg-emerald-100 text-emerald-800",
+      presentation: "bg-orange-100 text-orange-800",
+      text: "bg-gray-100 text-gray-800",
+      archive: "bg-yellow-100 text-yellow-800",
       other: "bg-gray-100 text-gray-800"
     };
     
@@ -183,13 +205,19 @@ export default function FileGrid({
     if (filter === "all") return true;
     if (filter === "images") return file.type === "image";
     if (filter === "videos") return file.type === "video";
+    if (filter === "audio") return file.type === "audio";
     if (filter === "pdfs") return file.type === "pdf";
+    if (filter === "documents") return file.type === "document";
+    if (filter === "spreadsheets") return file.type === "spreadsheet";
+    if (filter === "presentations") return file.type === "presentation";
+    if (filter === "text") return file.type === "text";
+    if (filter === "archives") return file.type === "archive";
     if (filter === "processed") return file.status === "processed";
     if (filter === "unprocessed") return file.status === "pending";
     return true;
   });
 
-  const processedImages = files.filter(f => f.status === "processed" && f.type === "image");
+  const processedFiles = files.filter(f => f.status === "processed");
   
   const handleFileSelection = (fileId: number, checked: boolean) => {
     const newSelected = new Set(selectedFiles);
@@ -202,10 +230,10 @@ export default function FileGrid({
   };
 
   const handleSelectAllProcessed = () => {
-    if (selectedFiles.size === processedImages.length) {
+    if (selectedFiles.size === processedFiles.length) {
       setSelectedFiles(new Set());
     } else {
-      setSelectedFiles(new Set(processedImages.map(f => f.id)));
+      setSelectedFiles(new Set(processedFiles.map(f => f.id)));
     }
   };
 
@@ -250,7 +278,7 @@ export default function FileGrid({
             </Button>
           </div>
           <div className="flex items-center space-x-3">
-            {processedImages.length > 0 && (
+            {processedFiles.length > 0 && (
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
@@ -258,7 +286,7 @@ export default function FileGrid({
                   onClick={handleSelectAllProcessed}
                   disabled={bulkExportMutation.isPending}
                 >
-                  {selectedFiles.size === processedImages.length ? "Deselect All" : "Select All Processed"}
+                  {selectedFiles.size === processedFiles.length ? "Deselect All" : "Select All Processed"}
                 </Button>
                 {selectedFiles.size > 0 && (
                   <Button
@@ -298,7 +326,13 @@ export default function FileGrid({
                 <SelectItem value="all">All Files</SelectItem>
                 <SelectItem value="images">Images</SelectItem>
                 <SelectItem value="videos">Videos</SelectItem>
+                <SelectItem value="audio">Audio</SelectItem>
                 <SelectItem value="pdfs">PDFs</SelectItem>
+                <SelectItem value="documents">Documents</SelectItem>
+                <SelectItem value="spreadsheets">Spreadsheets</SelectItem>
+                <SelectItem value="presentations">Presentations</SelectItem>
+                <SelectItem value="text">Text Files</SelectItem>
+                <SelectItem value="archives">Archives</SelectItem>
                 <SelectItem value="processed">Processed</SelectItem>
                 <SelectItem value="unprocessed">Unprocessed</SelectItem>
               </SelectContent>
@@ -365,7 +399,7 @@ export default function FileGrid({
                         {getStatusBadge(file.status)}
                       </div>
                       <div className="col-span-1 flex justify-center">
-                        {file.status === "processed" && file.type === "image" && (
+                        {file.status === "processed" && (
                           <Checkbox
                             checked={selectedFiles.has(file.id)}
                             onCheckedChange={(checked) => handleFileSelection(file.id, checked as boolean)}
@@ -419,7 +453,7 @@ export default function FileGrid({
                         {getFileIcon(file, true)}
                       </div>
                     )}
-                    {file.status === "processed" && file.type === "image" && (
+                    {file.status === "processed" && (
                       <div className="absolute top-2 left-2 z-10">
                         <Checkbox
                           checked={selectedFiles.has(file.id)}

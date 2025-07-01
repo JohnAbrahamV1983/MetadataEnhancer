@@ -18,6 +18,8 @@ export class FileProcessorService {
         generatedMetadata = await this.processPDF(file, template);
       } else if (file.type === 'video') {
         generatedMetadata = await this.processVideo(file, template);
+      } else if (file.type === 'audio') {
+        generatedMetadata = await this.processAudio(file, template);
       } else {
         // For other file types, generate basic metadata
         generatedMetadata = await openAIService.generateDefaultMetadata(
@@ -180,6 +182,45 @@ export class FileProcessorService {
       );
     } catch (error) {
       throw new Error(`Failed to process video: ${error.message}`);
+    }
+  }
+
+  private async processAudio(file: DriveFile, template?: MetadataTemplate): Promise<any> {
+    try {
+      // Get audio content
+      const audioBuffer = await googleDriveService.getFileContent(file.driveId);
+      
+      let transcript = '';
+      try {
+        transcript = await openAIService.transcribeAudio(audioBuffer);
+        console.log(`Transcribed audio for: ${file.name} (${transcript.length} characters)`);
+      } catch (transcriptionError) {
+        console.warn(`Audio transcription failed for ${file.name}:`, (transcriptionError as Error).message);
+      }
+
+      const metadataFields = template?.fields as any[] || [
+        { name: 'description', description: 'Description of the audio content and topic', type: 'text' },
+        { name: 'keywords', description: 'Key topics and terms from the audio', type: 'tags' },
+        { name: 'category', description: 'Audio category (music, podcast, speech, etc.)', type: 'text' },
+        { name: 'mood', description: 'Tone or mood of the audio content', type: 'text' },
+        { name: 'speakers', description: 'Speakers or performers identified', type: 'tags' },
+        { name: 'topics', description: 'Main topics or subjects discussed', type: 'tags' },
+        { name: 'language', description: 'Primary language of the audio', type: 'text' },
+        { name: 'genre', description: 'Genre or style classification', type: 'text' }
+      ];
+
+      // Create context for AI analysis
+      const audioContext = {
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.mimeType,
+        transcript: transcript || 'Transcription not available',
+        duration: 'Duration unknown'
+      };
+
+      return await openAIService.analyzeAudio(audioContext, metadataFields);
+    } catch (error) {
+      throw new Error(`Failed to process audio: ${error.message}`);
     }
   }
 

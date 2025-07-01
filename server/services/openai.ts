@@ -219,6 +219,56 @@ ${transcript}
     }
   }
 
+  async analyzeAudio(audioContext: any, metadataFields: MetadataField[]): Promise<GeneratedMetadata> {
+    try {
+      const fieldDescriptions = metadataFields
+        .map(field => `- ${field.name}: ${field.description}`)
+        .join('\n');
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert audio content analyst. Analyze the provided audio file information and generate comprehensive metadata.
+
+${fieldDescriptions ? `Required Metadata Fields:\n${fieldDescriptions}\n` : 'Generate comprehensive metadata including description, keywords, category, mood, speakers, topics, language, and genre.\n'}
+
+Analysis Guidelines:
+- Use the transcript to understand the audio content and context
+- Identify speakers, topics, themes, and key information
+- Determine the audio category (music, podcast, speech, interview, etc.)
+- Extract relevant keywords and topics from the content
+- Assess the tone, mood, and style of the audio
+- Be specific and accurate in your analysis
+
+Return your response as JSON with the field names as keys.`
+          },
+          {
+            role: "user",
+            content: `Analyze this audio file:
+
+File Information:
+- Filename: ${audioContext.fileName}
+- File Size: ${audioContext.fileSize}
+- MIME Type: ${audioContext.mimeType}
+- Duration: ${audioContext.duration}
+
+${audioContext.transcript && audioContext.transcript !== 'Transcription not available' 
+  ? `Transcript:\n${audioContext.transcript}` 
+  : 'No transcript available - base analysis on filename and file properties.'}`
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 1000,
+      });
+
+      return JSON.parse(response.choices[0].message.content || '{}');
+    } catch (error) {
+      throw new Error(`Failed to analyze audio: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async generateDefaultMetadata(fileName: string, fileType: string, mimeType: string): Promise<GeneratedMetadata> {
     try {
       const response = await openai.chat.completions.create({
