@@ -20,6 +20,8 @@ export class FileProcessorService {
         generatedMetadata = await this.processVideo(file, template);
       } else if (file.type === 'audio') {
         generatedMetadata = await this.processAudio(file, template);
+      } else if (file.type === 'document' || this.isOfficeDocument(file.mimeType)) {
+        generatedMetadata = await this.processDocument(file, template);
       } else {
         // For other file types, generate basic metadata
         generatedMetadata = await openAIService.generateDefaultMetadata(
@@ -79,29 +81,110 @@ export class FileProcessorService {
     try {
       console.log(`Processing PDF: ${file.name} (${file.driveId})`);
       
-      // Since pdf-parse has compatibility issues, we'll use filename-based analysis with AI
-      // This approach can still generate meaningful metadata based on the filename and context
+      // Download PDF content and extract text
+      const pdfBuffer = await googleDriveService.getFileContent(file.driveId);
+      console.log(`PDF buffer size: ${pdfBuffer.length} bytes`);
+      
+      if (pdfBuffer.length === 0) {
+        throw new Error('PDF file is empty or could not be downloaded');
+      }
+      
+      let extractedText = '';
+      
+      try {
+        // Use pdf2pic to convert PDF to images and then extract text using OCR-like approach
+        // First try to extract text using a simple text extraction method
+        const fs = require('fs');
+        const path = require('path');
+        const tempPdfPath = path.join('/tmp', `temp_${Date.now()}.pdf`);
+        
+        // Write buffer to temporary file
+        fs.writeFileSync(tempPdfPath, pdfBuffer);
+        
+        // Try to use poppler utils for text extraction if available
+        try {
+          const { exec } = require('child_process');
+          const { promisify } = require('util');
+          const execAsync = promisify(exec);
+          
+          // Try pdftotext command
+          const { stdout } = await execAsync(`pdftotext "${tempPdfPath}" -`);
+          extractedText = stdout.trim();
+          console.log(`Extracted text using pdftotext: ${extractedText.length} characters`);
+        } catch (pdfTextError) {
+          console.log('pdftotext not available, using alternative approach');
+          
+          // Fallback: Use pdf2pic to convert to images for analysis
+          const pdf2pic = require('pdf2pic');
+          const convert = pdf2pic.fromBuffer(pdfBuffer, {
+            density: 100,
+            saveFilename: 'page',
+            savePath: '/tmp',
+            format: 'png',
+            width: 800,
+            height: 1200
+          });
+          
+          try {
+            const results = await convert.bulk(-1, { responseType: 'base64' });
+            console.log(`Converted PDF to ${results.length} images`);
+            
+            // Analyze first few pages with OCR-like capabilities using OpenAI Vision
+            const imagePages = results.slice(0, 3); // Analyze first 3 pages
+            for (const result of imagePages) {
+              try {
+                const pageAnalysis = await openAIService.analyzeImage(result.base64, [
+                  { name: 'text_content', description: 'All readable text from this page', type: 'text' }
+                ]);
+                if (pageAnalysis.text_content) {
+                  extractedText += pageAnalysis.text_content + '\n\n';
+                }
+              } catch (pageError) {
+                console.log('Failed to analyze page:', pageError);
+              }
+            }
+          } catch (conversionError) {
+            console.log('PDF to image conversion failed:', conversionError);
+          }
+        }
+        
+        // Clean up temporary file
+        try {
+          fs.unlinkSync(tempPdfPath);
+        } catch (cleanupError) {
+          console.log('Failed to cleanup temp file:', cleanupError);
+        }
+        
+      } catch (extractionError) {
+        console.log('Text extraction failed:', extractionError);
+      }
       
       const metadataFields = template?.fields as any[] || [
-        { name: 'description', description: 'Summary and description based on filename and document type', type: 'text' },
-        { name: 'keywords', description: 'Relevant keywords and tags extracted from filename', type: 'tags' },
-        { name: 'category', description: 'Document category (report, manual, guide, etc.)', type: 'text' },
-        { name: 'subject', description: 'Main subject or theme inferred from filename', type: 'text' },
-        { name: 'document_type', description: 'Type of PDF document', type: 'text' },
-        { name: 'content_type', description: 'Expected content type (technical, educational, business, etc.)', type: 'text' }
+        { name: 'title', description: 'Document title', type: 'text' },
+        { name: 'description', description: 'Comprehensive summary of document content', type: 'text' },
+        { name: 'keywords', description: 'Key terms and topics from the document', type: 'tags' },
+        { name: 'category', description: 'Document category (report, manual, academic, etc.)', type: 'text' },
+        { name: 'subject', description: 'Main subject or domain', type: 'text' },
+        { name: 'document_type', description: 'Type of document (research paper, manual, report, etc.)', type: 'text' },
+        { name: 'key_points', description: 'Main points or conclusions from the document', type: 'text' },
+        { name: 'author_info', description: 'Author or organization information if mentioned', type: 'text' }
       ];
 
-      // Enhanced filename-based analysis with file properties
-      const enhancedContext = {
-        filename: file.name,
-        fileSize: file.size,
-        mimeType: file.mimeType,
-        createdTime: file.createdTime,
-        modifiedTime: file.modifiedTime,
-        fileType: 'PDF Document'
-      };
-
-      return await openAIService.analyzeDocumentByContext(enhancedContext, metadataFields);
+      if (extractedText && extractedText.trim().length > 50) {
+        console.log(`Analyzing PDF with extracted text: ${extractedText.length} characters`);
+        return await openAIService.analyzePDF(extractedText, metadataFields);
+      } else {
+        console.log('Insufficient text extracted, using filename-based analysis');
+        const enhancedContext = {
+          filename: file.name,
+          fileSize: file.size,
+          mimeType: file.mimeType,
+          createdTime: file.createdTime,
+          modifiedTime: file.modifiedTime,
+          fileType: 'PDF Document'
+        };
+        return await openAIService.analyzeDocumentByContext(enhancedContext, metadataFields);
+      }
     } catch (error) {
       console.error(`PDF processing error for ${file.name}:`, error);
       throw new Error(`Failed to process PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -193,6 +276,144 @@ export class FileProcessorService {
     } catch (error) {
       throw new Error(`Failed to process video: ${error.message}`);
     }
+  }
+
+  private isOfficeDocument(mimeType: string): boolean {
+    const officeMimeTypes = [
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-word', // .doc
+      'application/vnd.ms-powerpoint', // .ppt
+      'application/vnd.ms-excel', // .xls
+      'application/msword',
+      'text/plain', // .txt
+      'application/rtf' // .rtf
+    ];
+    return officeMimeTypes.includes(mimeType);
+  }
+
+  private async processDocument(file: DriveFile, template?: MetadataTemplate): Promise<any> {
+    try {
+      console.log(`Processing document: ${file.name} (${file.driveId})`);
+      
+      // Download document content
+      const documentBuffer = await googleDriveService.getFileContent(file.driveId);
+      console.log(`Document buffer size: ${documentBuffer.length} bytes`);
+      
+      if (documentBuffer.length === 0) {
+        throw new Error('Document file is empty or could not be downloaded');
+      }
+      
+      let extractedText = '';
+      
+      try {
+        if (file.mimeType.includes('wordprocessingml') || file.name.toLowerCase().endsWith('.docx')) {
+          // Process Word documents using mammoth
+          const mammoth = require('mammoth');
+          const result = await mammoth.extractRawText({ buffer: documentBuffer });
+          extractedText = result.value;
+          console.log(`Extracted text from Word document: ${extractedText.length} characters`);
+          
+        } else if (file.mimeType.includes('presentationml') || file.name.toLowerCase().endsWith('.pptx')) {
+          // Process PowerPoint presentations
+          // For PPTX, we'll use a simpler approach since full text extraction is complex
+          const fs = require('fs');
+          const path = require('path');
+          const tempFilePath = path.join('/tmp', `temp_${Date.now()}.pptx`);
+          
+          try {
+            fs.writeFileSync(tempFilePath, documentBuffer);
+            
+            // Try to use unzip to extract text from PPTX (which is essentially a ZIP file)
+            const { exec } = require('child_process');
+            const { promisify } = require('util');
+            const execAsync = promisify(exec);
+            
+            try {
+              // Extract slide text from PPTX XML content
+              const { stdout } = await execAsync(`unzip -p "${tempFilePath}" ppt/slides/*.xml | grep -oP '(?<=<a:t>)[^<]+' | head -50`);
+              extractedText = stdout.replace(/\n/g, ' ').trim();
+              console.log(`Extracted text from PowerPoint: ${extractedText.length} characters`);
+            } catch (extractError) {
+              console.log('PowerPoint text extraction failed, using filename-based analysis');
+            }
+            
+            fs.unlinkSync(tempFilePath);
+          } catch (tempError) {
+            console.log('PowerPoint processing error:', tempError);
+          }
+          
+        } else if (file.mimeType.includes('spreadsheetml') || file.name.toLowerCase().endsWith('.xlsx')) {
+          // Process Excel spreadsheets
+          const xlsx = require('xlsx');
+          const workbook = xlsx.read(documentBuffer, { type: 'buffer' });
+          const sheetNames = workbook.SheetNames;
+          
+          let allText = '';
+          sheetNames.slice(0, 3).forEach(sheetName => { // Process first 3 sheets
+            const worksheet = workbook.Sheets[sheetName];
+            const sheetText = xlsx.utils.sheet_to_txt(worksheet);
+            allText += `Sheet ${sheetName}:\n${sheetText}\n\n`;
+          });
+          
+          extractedText = allText;
+          console.log(`Extracted text from Excel: ${extractedText.length} characters`);
+          
+        } else if (file.mimeType === 'text/plain') {
+          // Process plain text files
+          extractedText = documentBuffer.toString('utf-8');
+          console.log(`Extracted text from plain text file: ${extractedText.length} characters`);
+          
+        } else {
+          console.log('Unsupported document type, using filename-based analysis');
+        }
+      } catch (extractionError) {
+        console.log('Document text extraction failed:', extractionError);
+      }
+      
+      const metadataFields = template?.fields as any[] || [
+        { name: 'title', description: 'Document title or main heading', type: 'text' },
+        { name: 'description', description: 'Comprehensive summary of document content', type: 'text' },
+        { name: 'keywords', description: 'Key terms and topics from the document', type: 'tags' },
+        { name: 'category', description: 'Document category (report, presentation, manual, etc.)', type: 'text' },
+        { name: 'subject', description: 'Main subject or domain', type: 'text' },
+        { name: 'document_type', description: 'Type of document (business plan, research, presentation, etc.)', type: 'text' },
+        { name: 'key_points', description: 'Main points or takeaways from the document', type: 'text' },
+        { name: 'target_audience', description: 'Intended audience for this document', type: 'text' },
+        { name: 'content_structure', description: 'Overview of document structure and organization', type: 'text' }
+      ];
+
+      if (extractedText && extractedText.trim().length > 50) {
+        console.log(`Analyzing document with extracted text: ${extractedText.length} characters`);
+        // Truncate very long text to avoid token limits
+        const truncatedText = extractedText.length > 8000 ? extractedText.substring(0, 8000) + '...' : extractedText;
+        return await openAIService.analyzePDF(truncatedText, metadataFields); // Reuse PDF analysis method
+      } else {
+        console.log('Insufficient text extracted, using filename-based analysis');
+        const enhancedContext = {
+          filename: file.name,
+          fileSize: file.size,
+          mimeType: file.mimeType,
+          createdTime: file.createdTime,
+          modifiedTime: file.modifiedTime,
+          fileType: this.getDocumentType(file.mimeType)
+        };
+        return await openAIService.analyzeDocumentByContext(enhancedContext, metadataFields);
+      }
+    } catch (error) {
+      console.error(`Document processing error for ${file.name}:`, error);
+      throw new Error(`Failed to process document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private getDocumentType(mimeType: string): string {
+    if (mimeType.includes('wordprocessingml') || mimeType.includes('msword')) return 'Word Document';
+    if (mimeType.includes('presentationml') || mimeType.includes('ms-powerpoint')) return 'PowerPoint Presentation';
+    if (mimeType.includes('spreadsheetml') || mimeType.includes('ms-excel')) return 'Excel Spreadsheet';
+    if (mimeType === 'text/plain') return 'Text Document';
+    if (mimeType === 'application/rtf') return 'RTF Document';
+    return 'Office Document';
   }
 
   private async processAudio(file: DriveFile, template?: MetadataTemplate): Promise<any> {
