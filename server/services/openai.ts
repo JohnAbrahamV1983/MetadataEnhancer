@@ -94,7 +94,7 @@ For each field, provide appropriate values based on the document content. For 't
     }
   }
 
-  async analyzeVideo(metadata: any, thumbnailBase64?: string, metadataFields?: MetadataField[]): Promise<GeneratedMetadata> {
+  async analyzeVideo(metadata: any, thumbnailBase64?: string, metadataFields?: MetadataField[], videoFrames?: string[], transcript?: string): Promise<GeneratedMetadata> {
     try {
       const fieldDescriptions = metadataFields?.map(field => 
         `${field.name}: ${field.description} (${field.type}${field.options ? `, options: ${field.options.join(', ')}` : ''})`
@@ -103,17 +103,26 @@ For each field, provide appropriate values based on the document content. For 't
       let messages: any[] = [
         {
           role: "system",
-          content: `You are an expert video content analyst. Your task is to analyze video files and generate meaningful metadata based on available information.
+          content: `You are an expert video content analyst. Your task is to analyze video files and generate comprehensive, intelligent metadata based on visual content and audio transcription.
 
-${fieldDescriptions ? `Required Metadata Fields:\n${fieldDescriptions}\n` : 'Generate comprehensive metadata including description, keywords, category, and mood.\n'}
+${fieldDescriptions ? `Required Metadata Fields:\n${fieldDescriptions}\n` : 'Generate comprehensive metadata including description, keywords, category, mood, themes, objects, people, activities, and context.\n'}
+
+Analysis Capabilities:
+- Deep visual analysis of video frames to identify objects, people, activities, settings, and context
+- Transcript analysis to understand spoken content, topics, and themes
+- Temporal understanding of how content evolves throughout the video
+- Scene and activity recognition
+- Emotional tone and mood analysis
+- Technical quality assessment
 
 Analysis Guidelines:
-- If a thumbnail is provided, analyze the visual content thoroughly
-- Use filename patterns to infer content type (e.g., "meeting", "presentation", "tutorial", "demo")
-- Consider video duration to determine content type (short clips vs. long content)
-- For technical metadata like resolution/duration, incorporate this into your analysis
-- Generate specific, descriptive keywords rather than generic ones
-- Be specific about what you can observe rather than making broad assumptions
+- Provide detailed, specific descriptions based on actual visual and audio content
+- Identify key themes, topics, and subjects discussed or shown
+- Describe visual elements: people, objects, settings, actions, text overlays
+- Note any educational, entertainment, business, or personal content
+- Analyze the production quality and style (professional, casual, documentary, etc.)
+- Generate highly relevant and specific keywords
+- Be comprehensive but accurate - only describe what you can actually observe
 
 Return your response as JSON with the field names as keys.`
         }
@@ -128,13 +137,7 @@ Return your response as JSON with the field names as keys.`
         mimeType: metadata.mimeType || 'Unknown'
       };
 
-      if (thumbnailBase64) {
-        messages.push({
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Analyze this video file. Pay special attention to the thumbnail image which shows a frame from the video content.
+      let contentAnalysisText = `Analyze this video file comprehensively:
 
 Video Information:
 - Filename: ${videoInfo.filename}
@@ -144,45 +147,75 @@ Video Information:
 - Created: ${videoInfo.createdTime}
 - Type: ${videoInfo.mimeType}
 
-Based on the thumbnail and video information, provide detailed and specific metadata. Focus on what you can actually see in the thumbnail rather than generic assumptions.`
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${thumbnailBase64}`
-              }
+`;
+
+      // Add transcript analysis if available
+      if (transcript && transcript.trim()) {
+        contentAnalysisText += `Audio Transcript:
+${transcript}
+
+`;
+      }
+
+      const userContent: any[] = [{
+        type: "text",
+        text: contentAnalysisText + `Based on the ${videoFrames && videoFrames.length > 0 ? 'video frames' : 'thumbnail'}${transcript ? ' and transcript' : ''}, provide detailed and comprehensive metadata that accurately describes the video content, themes, activities, and context.`
+      }];
+
+      // Add video frames for comprehensive visual analysis
+      if (videoFrames && videoFrames.length > 0) {
+        videoFrames.forEach((frameBase64, index) => {
+          userContent.push({
+            type: "image_url",
+            image_url: {
+              url: `data:image/jpeg;base64,${frameBase64}`
             }
-          ],
+          });
         });
-      } else {
-        messages.push({
-          role: "user",
-          content: `Analyze this video file based on the available metadata and filename patterns:
-
-Video Information:
-- Filename: ${videoInfo.filename}
-- Duration: ${videoInfo.duration}
-- Resolution: ${videoInfo.dimensions}
-- File Size: ${videoInfo.fileSize}
-- Created: ${videoInfo.createdTime}
-- Type: ${videoInfo.mimeType}
-
-Technical Metadata: ${JSON.stringify(metadata, null, 2)}
-
-Note: No thumbnail is available. Base your analysis on the filename, technical properties, and any patterns you can identify. Be specific about what you can infer from the available information.`
+      } else if (thumbnailBase64) {
+        // Fallback to thumbnail if no frames extracted
+        userContent.push({
+          type: "image_url",
+          image_url: {
+            url: `data:image/jpeg;base64,${thumbnailBase64}`
+          }
         });
       }
+
+      messages.push({
+        role: "user",
+        content: userContent
+      });
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages,
         response_format: { type: "json_object" },
-        max_tokens: 1000,
+        max_tokens: 1500, // Increased for more detailed analysis
       });
 
       return JSON.parse(response.choices[0].message.content || '{}');
     } catch (error) {
       throw new Error(`Failed to analyze video: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async transcribeAudio(audioBuffer: Buffer): Promise<string> {
+    try {
+      // Create a temporary file for the audio
+      const tempFile = new File([audioBuffer], 'temp_audio.mp3', { type: 'audio/mpeg' });
+      
+      const response = await openai.audio.transcriptions.create({
+        file: tempFile,
+        model: 'whisper-1',
+        language: 'en', // You can make this configurable
+        response_format: 'text'
+      });
+
+      return response || '';
+    } catch (error) {
+      console.warn(`Audio transcription failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return ''; // Return empty string if transcription fails
     }
   }
 

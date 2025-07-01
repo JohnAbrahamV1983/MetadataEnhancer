@@ -102,6 +102,8 @@ export class FileProcessorService {
       const driveMetadata = await googleDriveService.getFileMetadata(file.driveId);
       
       let thumbnailBase64: string | undefined;
+      let videoFrames: string[] = [];
+      let transcript: string = '';
       
       // Try to get thumbnail from Google Drive
       if (file.thumbnailLink) {
@@ -122,11 +124,41 @@ export class FileProcessorService {
         }
       }
 
+      // Download video for advanced processing
+      try {
+        const videoBuffer = await googleDriveService.getFileContent(file.driveId);
+        console.log(`Downloaded video file: ${file.name} (${videoBuffer.length} bytes)`);
+
+        // Extract multiple frames for comprehensive analysis
+        videoFrames = await this.extractVideoFrames(videoBuffer, file.name);
+        console.log(`Extracted ${videoFrames.length} frames from video: ${file.name}`);
+
+        // Extract and transcribe audio
+        try {
+          const audioBuffer = await this.extractAudioFromVideo(videoBuffer, file.name);
+          if (audioBuffer) {
+            transcript = await openAIService.transcribeAudio(audioBuffer);
+            console.log(`Transcribed audio for video: ${file.name} (${transcript.length} characters)`);
+          }
+        } catch (audioError) {
+          console.warn(`Audio extraction/transcription failed for ${file.name}:`, (audioError as Error).message);
+        }
+
+      } catch (downloadError) {
+        console.warn(`Could not download video for advanced processing: ${(downloadError as Error).message}`);
+      }
+
       const metadataFields = template?.fields as any[] || [
-        { name: 'description', description: 'Description of the video content', type: 'text' },
-        { name: 'keywords', description: 'Relevant keywords and tags', type: 'tags' },
-        { name: 'category', description: 'Video category or genre', type: 'text' },
-        { name: 'mood', description: 'Mood or tone of the video', type: 'text' }
+        { name: 'description', description: 'Comprehensive description of the video content, activities, and context', type: 'text' },
+        { name: 'keywords', description: 'Specific and relevant keywords based on visual and audio content', type: 'tags' },
+        { name: 'category', description: 'Video category, genre, or content type', type: 'text' },
+        { name: 'mood', description: 'Emotional tone, mood, or atmosphere of the video', type: 'text' },
+        { name: 'themes', description: 'Main themes, topics, or subjects covered', type: 'tags' },
+        { name: 'people', description: 'People, speakers, or participants visible or mentioned', type: 'tags' },
+        { name: 'objects', description: 'Key objects, products, or items shown in the video', type: 'tags' },
+        { name: 'activities', description: 'Activities, actions, or events taking place', type: 'tags' },
+        { name: 'setting', description: 'Location, environment, or setting of the video', type: 'text' },
+        { name: 'quality', description: 'Production quality and style assessment', type: 'text' }
       ];
 
       // Enhanced video metadata context
@@ -142,10 +174,114 @@ export class FileProcessorService {
       return await openAIService.analyzeVideo(
         videoContext,
         thumbnailBase64,
-        metadataFields
+        metadataFields,
+        videoFrames.length > 0 ? videoFrames : undefined,
+        transcript || undefined
       );
     } catch (error) {
       throw new Error(`Failed to process video: ${error.message}`);
+    }
+  }
+
+  private async extractVideoFrames(videoBuffer: Buffer, fileName: string): Promise<string[]> {
+    try {
+      // Dynamically import fluent-ffmpeg for video processing
+      const ffmpeg = await import('fluent-ffmpeg');
+      const fs = await import('fs');
+      const path = await import('path');
+      const { promisify } = await import('util');
+      const writeFile = promisify(fs.writeFile);
+      const readFile = promisify(fs.readFile);
+      const unlink = promisify(fs.unlink);
+
+      const tempDir = '/tmp';
+      const tempVideoPath = path.join(tempDir, `temp_video_${Date.now()}.mp4`);
+      const frames: string[] = [];
+
+      // Write video buffer to temporary file
+      await writeFile(tempVideoPath, videoBuffer);
+
+      // Extract frames at different timestamps (beginning, middle, end, plus a few more)
+      const timestamps = ['00:00:01', '25%', '50%', '75%', '95%'];
+      
+      for (let i = 0; i < Math.min(timestamps.length, 5); i++) {
+        const timestamp = timestamps[i];
+        const framePath = path.join(tempDir, `frame_${Date.now()}_${i}.jpg`);
+        
+        try {
+          await new Promise<void>((resolve, reject) => {
+            ffmpeg.default(tempVideoPath)
+              .screenshots({
+                timestamps: [timestamp],
+                filename: path.basename(framePath),
+                folder: tempDir,
+                size: '640x480'
+              })
+              .on('end', () => resolve())
+              .on('error', (err) => reject(err));
+          });
+
+          const frameBuffer = await readFile(framePath);
+          frames.push(frameBuffer.toString('base64'));
+          
+          // Clean up frame file
+          await unlink(framePath);
+        } catch (frameError) {
+          console.warn(`Failed to extract frame at ${timestamp}:`, (frameError as Error).message);
+        }
+      }
+
+      // Clean up temporary video file
+      await unlink(tempVideoPath);
+      
+      return frames;
+    } catch (error) {
+      console.warn(`Frame extraction failed for ${fileName}:`, (error as Error).message);
+      return [];
+    }
+  }
+
+  private async extractAudioFromVideo(videoBuffer: Buffer, fileName: string): Promise<Buffer | null> {
+    try {
+      // Dynamically import fluent-ffmpeg for audio extraction
+      const ffmpeg = await import('fluent-ffmpeg');
+      const fs = await import('fs');
+      const path = await import('path');
+      const { promisify } = await import('util');
+      const writeFile = promisify(fs.writeFile);
+      const readFile = promisify(fs.readFile);
+      const unlink = promisify(fs.unlink);
+
+      const tempDir = '/tmp';
+      const tempVideoPath = path.join(tempDir, `temp_video_${Date.now()}.mp4`);
+      const tempAudioPath = path.join(tempDir, `temp_audio_${Date.now()}.mp3`);
+
+      // Write video buffer to temporary file
+      await writeFile(tempVideoPath, videoBuffer);
+
+      // Extract audio using ffmpeg
+      await new Promise<void>((resolve, reject) => {
+        ffmpeg.default(tempVideoPath)
+          .output(tempAudioPath)
+          .audioCodec('mp3')
+          .audioFrequency(16000)
+          .audioChannels(1)
+          .duration(300) // Limit to first 5 minutes to manage costs
+          .on('end', () => resolve())
+          .on('error', (err) => reject(err))
+          .run();
+      });
+
+      const audioBuffer = await readFile(tempAudioPath);
+      
+      // Clean up temporary files
+      await unlink(tempVideoPath);
+      await unlink(tempAudioPath);
+      
+      return audioBuffer;
+    } catch (error) {
+      console.warn(`Audio extraction failed for ${fileName}:`, (error as Error).message);
+      return null;
     }
   }
 
