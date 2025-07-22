@@ -119,11 +119,9 @@ export default function ProcessingModal({ isOpen, onClose, folderId, onProcessin
                       <SelectItem key={template.id} value={template.id.toString()}>
                         <div className="flex flex-col">
                           <span>{template.name}</span>
-                          {template.createdAt && (
-                            <span className="text-xs text-muted-foreground">
-                              Uploaded: {new Date(template.createdAt).toLocaleString()}
-                            </span>
-                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(template.createdAt).toLocaleString()}
+                          </span>
                         </div>
                       </SelectItem>
                     ))}
