@@ -117,7 +117,14 @@ export default function ProcessingModal({ isOpen, onClose, folderId, onProcessin
                     <SelectItem value="default">Default Template</SelectItem>
                     {templates?.map((template: any) => (
                       <SelectItem key={template.id} value={template.id.toString()}>
-                        {template.name}
+                        <div className="flex flex-col">
+                          <span>{template.name}</span>
+                          {template.createdAt && (
+                            <span className="text-xs text-muted-foreground">
+                              Uploaded: {new Date(template.createdAt).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>

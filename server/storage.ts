@@ -18,7 +18,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Drive file methods
   getDriveFile(id: number): Promise<DriveFile | undefined>;
   getDriveFileByDriveId(driveId: string): Promise<DriveFile | undefined>;
@@ -27,14 +27,15 @@ export interface IStorage {
   createDriveFile(file: InsertDriveFile): Promise<DriveFile>;
   updateDriveFile(id: number, updates: Partial<DriveFile>): Promise<DriveFile | undefined>;
   deleteDriveFile(id: number): Promise<boolean>;
-  
+
   // Metadata template methods
   getMetadataTemplate(id: number): Promise<MetadataTemplate | undefined>;
   getAllMetadataTemplates(): Promise<MetadataTemplate[]>;
   createMetadataTemplate(template: InsertMetadataTemplate): Promise<MetadataTemplate>;
   updateMetadataTemplate(id: number, updates: Partial<MetadataTemplate>): Promise<MetadataTemplate | undefined>;
   deleteMetadataTemplate(id: number): Promise<boolean>;
-  
+  clearAllMetadataTemplates(): Promise<void>;
+
   // Processing job methods
   getProcessingJob(id: number): Promise<ProcessingJob | undefined>;
   getAllProcessingJobs(): Promise<ProcessingJob[]>;
@@ -118,7 +119,7 @@ export class MemStorage implements IStorage {
   async updateDriveFile(id: number, updates: Partial<DriveFile>): Promise<DriveFile | undefined> {
     const existing = this.driveFiles.get(id);
     if (!existing) return undefined;
-    
+
     const updated = { ...existing, ...updates };
     this.driveFiles.set(id, updated);
     return updated;
@@ -152,7 +153,7 @@ export class MemStorage implements IStorage {
   async updateMetadataTemplate(id: number, updates: Partial<MetadataTemplate>): Promise<MetadataTemplate | undefined> {
     const existing = this.metadataTemplates.get(id);
     if (!existing) return undefined;
-    
+
     const updated = { ...existing, ...updates };
     this.metadataTemplates.set(id, updated);
     return updated;
@@ -160,6 +161,10 @@ export class MemStorage implements IStorage {
 
   async deleteMetadataTemplate(id: number): Promise<boolean> {
     return this.metadataTemplates.delete(id);
+  }
+
+  async clearAllMetadataTemplates(): Promise<void> {
+    this.metadataTemplates.clear();
   }
 
   // Processing job methods
@@ -191,7 +196,7 @@ export class MemStorage implements IStorage {
   async updateProcessingJob(id: number, updates: Partial<ProcessingJob>): Promise<ProcessingJob | undefined> {
     const existing = this.processingJobs.get(id);
     if (!existing) return undefined;
-    
+
     const updated = { ...existing, ...updates };
     this.processingJobs.set(id, updated);
     return updated;

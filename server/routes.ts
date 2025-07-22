@@ -274,6 +274,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Clear all templates
+  app.delete("/api/templates/clear", async (req, res) => {
+    try {
+      await storage.clearAllMetadataTemplates();
+      res.json({ message: "All templates cleared successfully" });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/templates/upload", upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
