@@ -291,24 +291,36 @@ ${audioContext.transcript && audioContext.transcript !== 'Transcription not avai
         messages: [
           {
             role: "system",
-            content: `You are an expert document analyst with deep expertise in content analysis and metadata generation. Your task is to thoroughly analyze the provided document content and generate comprehensive, accurate metadata.
+            content: `You are an expert document analyst specializing in extracting precise, content-specific metadata from documents. You must analyze the ACTUAL TEXT CONTENT provided and generate detailed, specific metadata based on what the document actually contains.
 
 Required Metadata Fields:
 ${fieldDescriptions}
 
-Analysis Guidelines:
-- Read and understand the ENTIRE document content provided
-- Extract specific information directly from the text, not assumptions
-- Generate precise, content-based descriptions and summaries
-- Identify actual topics, themes, and key concepts mentioned in the text
-- Extract real keywords and terminology used in the document
-- Determine the document's purpose, audience, and subject matter from content
-- Identify any mentioned authors, organizations, or sources
-- Note the document structure, main sections, and key findings
-- Be specific and detailed - avoid generic descriptions
-- Base ALL metadata on actual document content, not filename
+CRITICAL ANALYSIS REQUIREMENTS:
+- Read the ENTIRE document content thoroughly
+- Extract SPECIFIC information, data, facts, and details mentioned in the text
+- Identify ACTUAL subject matter, not generic categories
+- Quote or reference SPECIFIC sections, topics, or findings from the document
+- Note REAL authors, organizations, companies, or sources mentioned
+- Describe ACTUAL methodology, processes, or approaches discussed
+- Identify SPECIFIC technologies, products, concepts, or terminology used
+- Extract REAL dates, locations, statistics, or quantitative data mentioned
+- Summarize ACTUAL conclusions, recommendations, or key findings stated
+- Be FACTUAL and SPECIFIC - avoid generic or vague descriptions
 
-Return your response as JSON with the field names as keys. Ensure each field provides meaningful, content-specific information.`
+FORBIDDEN APPROACHES:
+- Do not use generic phrases like "professional material" or "unspecified content"
+- Do not generate metadata based on filename or assumptions
+- Do not create placeholder or generic descriptions
+- Do not use vague terms when specific content is available
+
+OUTPUT REQUIREMENTS:
+- Each metadata field must contain SPECIFIC information from the document content
+- Include actual quotes, statistics, or specific details where relevant
+- Make descriptions detailed and content-specific
+- Ensure keywords reflect actual terminology used in the document
+
+Return your response as JSON with the field names as keys. Every field must provide specific, content-based information extracted from the actual document text.`
           },
           {
             role: "user",

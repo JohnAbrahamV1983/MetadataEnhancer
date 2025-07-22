@@ -196,22 +196,74 @@ export class FileProcessorService {
         { name: 'author_info', description: 'Author or organization information if mentioned', type: 'text' }
       ];
 
+      console.log(`\n=== PDF TEXT EXTRACTION RESULTS ===`);
+      console.log(`Extracted text length: ${extractedText.length} characters`);
+      console.log(`First 300 characters: "${extractedText.substring(0, 300)}..."`);
+      console.log(`=====================================\n`);
+
       if (extractedText && extractedText.trim().length > 50) {
-        console.log(`Analyzing PDF with extracted text: ${extractedText.length} characters`);
+        console.log(`✓ SUCCESS: Analyzing PDF with actual extracted content: ${extractedText.length} characters`);
         
-        // Provide a sample of the text for verification
-        const textSample = extractedText.substring(0, 200);
-        console.log(`Text sample: "${textSample}..."`);
-        
-        // Use enhanced PDF analysis with better prompting
+        // Use enhanced PDF analysis with actual content
         return await openAIService.analyzeDocumentContent(extractedText, metadataFields, {
           filename: file.name,
           fileType: 'PDF Document',
           fileSize: file.size,
-          pageCount: 'multiple pages analyzed'
+          pageCount: 'multiple pages analyzed',
+          extractionMethod: extractedText.includes('--- Page') ? 'OCR via OpenAI Vision' : 'pdftotext'
         });
       } else {
-        console.log('Insufficient text extracted, using filename-based analysis');
+        console.log(`⚠️ WARNING: Insufficient text extracted (${extractedText.length} chars), forcing OCR approach`);
+        
+        // Force OCR extraction as a last resort
+        try {
+          const pdf2pic = require('pdf2pic');
+          const convert = pdf2pic.fromBuffer(pdfBuffer, {
+            density: 200, // High density for better OCR
+            saveFilename: 'page',
+            savePath: '/tmp',
+            format: 'png',
+            width: 1600,
+            height: 2000
+          });
+          
+          const results = await convert.bulk(3, { responseType: 'base64' }); // Force first 3 pages
+          console.log(`Emergency OCR: Converting ${results.length} pages to images`);
+          
+          let emergencyText = '';
+          for (let i = 0; i < results.length; i++) {
+            const result = results[i];
+            console.log(`Emergency OCR: Analyzing page ${i + 1}...`);
+            
+            const pageAnalysis = await openAIService.analyzeImage(result.base64, [
+              { 
+                name: 'full_page_text', 
+                description: 'Extract ALL text from this document page. Include titles, headings, body paragraphs, bullet points, captions, footnotes, and any other readable content. Preserve structure and formatting where possible.', 
+                type: 'text' 
+              }
+            ]);
+            
+            if (pageAnalysis.full_page_text) {
+              emergencyText += `\n--- PAGE ${i + 1} ---\n${pageAnalysis.full_page_text}\n`;
+              console.log(`Emergency OCR: Extracted ${pageAnalysis.full_page_text.length} characters from page ${i + 1}`);
+            }
+          }
+          
+          if (emergencyText.trim().length > 100) {
+            console.log(`✓ Emergency OCR SUCCESS: Extracted ${emergencyText.length} characters total`);
+            return await openAIService.analyzeDocumentContent(emergencyText, metadataFields, {
+              filename: file.name,
+              fileType: 'PDF Document',
+              fileSize: file.size,
+              pageCount: `${results.length} pages`,
+              extractionMethod: 'Emergency OCR via OpenAI Vision'
+            });
+          }
+        } catch (emergencyError: any) {
+          console.log(`Emergency OCR failed:`, emergencyError.message);
+        }
+        
+        console.log(`❌ FALLBACK: Using filename-based analysis - this will produce generic results`);
         const enhancedContext = {
           filename: file.name,
           fileSize: file.size,
