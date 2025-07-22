@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, X } from "lucide-react";
+import { Bot, X, Trash2 } from "lucide-react";
 
 interface ProcessingModalProps {
   isOpen: boolean;
@@ -29,6 +29,28 @@ export default function ProcessingModal({ isOpen, onClose, folderId, onProcessin
     queryKey: [`/api/jobs/${currentJobId}`],
     enabled: !!currentJobId,
     refetchInterval: 1000, // Poll every second when enabled
+  });
+
+  const clearTemplatesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", "/api/templates/clear");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Templates cleared",
+        description: "All uploaded templates have been cleared successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/templates"] });
+      setSelectedTemplateId("default"); // Reset selection to default
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Clear failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   // Watch for job completion and trigger refresh
@@ -108,7 +130,21 @@ export default function ProcessingModal({ isOpen, onClose, folderId, onProcessin
               </p>
 
               <div className="space-y-3">
-                <Label>Metadata Template (Optional)</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Metadata Template (Optional)</Label>
+                  {templates && templates.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => clearTemplatesMutation.mutate()}
+                      disabled={clearTemplatesMutation.isPending}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      {clearTemplatesMutation.isPending ? "Clearing..." : "Clear All"}
+                    </Button>
+                  )}
+                </div>
                 <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a template or use default" />

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit, LogOut, Download, CloudUpload, Trash2 } from "lucide-react";
+import { Cloud, Settings, UserCircle, FolderOpen, Upload, Play, Edit, LogOut, Download, CloudUpload } from "lucide-react";
 import FolderBrowser from "./folder-browser";
 
 interface HeaderProps {
@@ -126,26 +126,7 @@ export default function Header({ currentFolderId, onFolderChange, onStartProcess
     },
   });
 
-  const clearTemplatesMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("DELETE", "/api/templates/clear");
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Templates cleared",
-        description: "All uploaded templates have been cleared successfully.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/templates"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Clear failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  
 
   const disconnectMutation = useMutation({
     mutationFn: async () => {
@@ -342,15 +323,7 @@ Category,Type of content,select,Portrait;Landscape;Product;Event;Other`;
                 <Upload className="h-4 w-4 mr-2" />
                 {uploadTemplateMutation.isPending ? "Uploading..." : "Upload CSV Template"}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => clearTemplatesMutation.mutate()}
-                disabled={clearTemplatesMutation.isPending}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                {clearTemplatesMutation.isPending ? "Clearing..." : "Clear Templates"}
-              </Button>
+              
 
               <Button 
                 onClick={onStartProcessing}
