@@ -112,7 +112,7 @@ export class FileProcessorService {
             const { stdout } = await execAsync(`pdftotext -layout -nopgbrk "${tempPdfPath}" -`, { timeout: 30000 });
             extractedText = stdout.trim();
             console.log(`Extracted text using pdftotext: ${extractedText.length} characters`);
-          } catch (pdfTextError) {
+          } catch (pdfTextError: any) {
             console.log('pdftotext failed, trying alternative:', pdfTextError.message);
             
             // Alternative: Try without layout preservation
@@ -120,7 +120,7 @@ export class FileProcessorService {
               const { stdout: rawText } = await execAsync(`pdftotext "${tempPdfPath}" -`, { timeout: 30000 });
               extractedText = rawText.trim();
               console.log(`Extracted raw text: ${extractedText.length} characters`);
-            } catch (rawTextError) {
+            } catch (rawTextError: any) {
               console.log('Raw pdftotext also failed:', rawTextError.message);
             }
           }
@@ -157,7 +157,7 @@ export class FileProcessorService {
                     ocrText += `\n--- Page ${i + 1} ---\n${pageAnalysis.extracted_text}\n`;
                     console.log(`Extracted ${pageAnalysis.extracted_text.length} characters from page ${i + 1}`);
                   }
-                } catch (pageError) {
+                } catch (pageError: any) {
                   console.log(`Failed to analyze page ${i + 1}:`, pageError.message);
                 }
               }
@@ -166,11 +166,11 @@ export class FileProcessorService {
                 extractedText = ocrText.trim();
                 console.log(`Using OCR text: ${extractedText.length} characters total`);
               }
-            } catch (conversionError) {
+            } catch (conversionError: any) {
               console.log('PDF to image conversion failed:', conversionError.message);
             }
           }
-        } catch (extractionError) {
+        } catch (extractionError: any) {
           console.log('All PDF text extraction methods failed:', extractionError.message);
         }
         
@@ -388,7 +388,7 @@ export class FileProcessorService {
           const sheetNames = workbook.SheetNames;
           
           let allText = '';
-          sheetNames.slice(0, 3).forEach(sheetName => { // Process first 3 sheets
+          sheetNames.slice(0, 3).forEach((sheetName: string) => { // Process first 3 sheets
             const worksheet = workbook.Sheets[sheetName];
             const sheetText = xlsx.utils.sheet_to_txt(worksheet);
             allText += `Sheet ${sheetName}:\n${sheetText}\n\n`;
