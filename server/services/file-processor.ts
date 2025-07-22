@@ -101,51 +101,77 @@ export class FileProcessorService {
         // Write buffer to temporary file
         fs.writeFileSync(tempPdfPath, pdfBuffer);
         
-        // Try to use poppler utils for text extraction if available
+        // Enhanced PDF text extraction with multiple methods
         try {
           const { exec } = require('child_process');
           const { promisify } = require('util');
           const execAsync = promisify(exec);
           
-          // Try pdftotext command
-          const { stdout } = await execAsync(`pdftotext "${tempPdfPath}" -`);
-          extractedText = stdout.trim();
-          console.log(`Extracted text using pdftotext: ${extractedText.length} characters`);
-        } catch (pdfTextError) {
-          console.log('pdftotext not available, using alternative approach');
-          
-          // Fallback: Use pdf2pic to convert to images for analysis
-          const pdf2pic = require('pdf2pic');
-          const convert = pdf2pic.fromBuffer(pdfBuffer, {
-            density: 100,
-            saveFilename: 'page',
-            savePath: '/tmp',
-            format: 'png',
-            width: 800,
-            height: 1200
-          });
-          
+          // Try pdftotext command with better options
           try {
-            const results = await convert.bulk(-1, { responseType: 'base64' });
-            console.log(`Converted PDF to ${results.length} images`);
+            const { stdout } = await execAsync(`pdftotext -layout -nopgbrk "${tempPdfPath}" -`, { timeout: 30000 });
+            extractedText = stdout.trim();
+            console.log(`Extracted text using pdftotext: ${extractedText.length} characters`);
+          } catch (pdfTextError) {
+            console.log('pdftotext failed, trying alternative:', pdfTextError.message);
             
-            // Analyze first few pages with OCR-like capabilities using OpenAI Vision
-            const imagePages = results.slice(0, 3); // Analyze first 3 pages
-            for (const result of imagePages) {
-              try {
-                const pageAnalysis = await openAIService.analyzeImage(result.base64, [
-                  { name: 'text_content', description: 'All readable text from this page', type: 'text' }
-                ]);
-                if (pageAnalysis.text_content) {
-                  extractedText += pageAnalysis.text_content + '\n\n';
-                }
-              } catch (pageError) {
-                console.log('Failed to analyze page:', pageError);
-              }
+            // Alternative: Try without layout preservation
+            try {
+              const { stdout: rawText } = await execAsync(`pdftotext "${tempPdfPath}" -`, { timeout: 30000 });
+              extractedText = rawText.trim();
+              console.log(`Extracted raw text: ${extractedText.length} characters`);
+            } catch (rawTextError) {
+              console.log('Raw pdftotext also failed:', rawTextError.message);
             }
-          } catch (conversionError) {
-            console.log('PDF to image conversion failed:', conversionError);
           }
+          
+          // If text extraction failed or yielded insufficient content, use OCR approach
+          if (!extractedText || extractedText.length < 100) {
+            console.log('Text extraction insufficient, using OCR approach with OpenAI Vision');
+            
+            const pdf2pic = require('pdf2pic');
+            const convert = pdf2pic.fromBuffer(pdfBuffer, {
+              density: 150, // Higher density for better OCR
+              saveFilename: 'page',
+              savePath: '/tmp',
+              format: 'png',
+              width: 1200,
+              height: 1600
+            });
+            
+            try {
+              // Convert first 5 pages maximum for thorough analysis
+              const results = await convert.bulk(5, { responseType: 'base64' });
+              console.log(`Converted PDF to ${results.length} images for OCR analysis`);
+              
+              let ocrText = '';
+              for (let i = 0; i < Math.min(results.length, 5); i++) {
+                const result = results[i];
+                try {
+                  console.log(`Analyzing page ${i + 1} with OpenAI Vision...`);
+                  const pageAnalysis = await openAIService.analyzeImage(result.base64, [
+                    { name: 'extracted_text', description: 'Extract ALL visible text from this document page, preserving structure and formatting. Include headers, body text, captions, footnotes, and any other readable content.', type: 'text' }
+                  ]);
+                  
+                  if (pageAnalysis.extracted_text) {
+                    ocrText += `\n--- Page ${i + 1} ---\n${pageAnalysis.extracted_text}\n`;
+                    console.log(`Extracted ${pageAnalysis.extracted_text.length} characters from page ${i + 1}`);
+                  }
+                } catch (pageError) {
+                  console.log(`Failed to analyze page ${i + 1}:`, pageError.message);
+                }
+              }
+              
+              if (ocrText.trim().length > extractedText.length) {
+                extractedText = ocrText.trim();
+                console.log(`Using OCR text: ${extractedText.length} characters total`);
+              }
+            } catch (conversionError) {
+              console.log('PDF to image conversion failed:', conversionError.message);
+            }
+          }
+        } catch (extractionError) {
+          console.log('All PDF text extraction methods failed:', extractionError.message);
         }
         
         // Clean up temporary file
@@ -172,7 +198,18 @@ export class FileProcessorService {
 
       if (extractedText && extractedText.trim().length > 50) {
         console.log(`Analyzing PDF with extracted text: ${extractedText.length} characters`);
-        return await openAIService.analyzePDF(extractedText, metadataFields);
+        
+        // Provide a sample of the text for verification
+        const textSample = extractedText.substring(0, 200);
+        console.log(`Text sample: "${textSample}..."`);
+        
+        // Use enhanced PDF analysis with better prompting
+        return await openAIService.analyzeDocumentContent(extractedText, metadataFields, {
+          filename: file.name,
+          fileType: 'PDF Document',
+          fileSize: file.size,
+          pageCount: 'multiple pages analyzed'
+        });
       } else {
         console.log('Insufficient text extracted, using filename-based analysis');
         const enhancedContext = {
@@ -386,9 +423,17 @@ export class FileProcessorService {
 
       if (extractedText && extractedText.trim().length > 50) {
         console.log(`Analyzing document with extracted text: ${extractedText.length} characters`);
-        // Truncate very long text to avoid token limits
-        const truncatedText = extractedText.length > 8000 ? extractedText.substring(0, 8000) + '...' : extractedText;
-        return await openAIService.analyzePDF(truncatedText, metadataFields); // Reuse PDF analysis method
+        
+        // Provide a sample of the text for verification
+        const textSample = extractedText.substring(0, 200);
+        console.log(`Text sample: "${textSample}..."`);
+        
+        // Use enhanced document analysis with better prompting
+        return await openAIService.analyzeDocumentContent(extractedText, metadataFields, {
+          filename: file.name,
+          fileType: this.getDocumentType(file.mimeType),
+          fileSize: file.size
+        });
       } else {
         console.log('Insufficient text extracted, using filename-based analysis');
         const enhancedContext = {

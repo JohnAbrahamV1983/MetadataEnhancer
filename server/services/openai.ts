@@ -269,6 +269,75 @@ ${audioContext.transcript && audioContext.transcript !== 'Transcription not avai
     }
   }
 
+  async analyzeDocumentContent(extractedText: string, metadataFields: MetadataField[], fileContext: any): Promise<GeneratedMetadata> {
+    try {
+      const fieldDescriptions = metadataFields
+        .map(field => `- ${field.name}: ${field.description}`)
+        .join('\n');
+
+      // Truncate very long text to stay within token limits while preserving key content
+      const maxLength = 12000;
+      let processedText = extractedText;
+      
+      if (extractedText.length > maxLength) {
+        // Take beginning and end of document to capture introduction and conclusion
+        const beginningText = extractedText.substring(0, maxLength * 0.6);
+        const endingText = extractedText.substring(extractedText.length - maxLength * 0.4);
+        processedText = beginningText + '\n\n[... content truncated ...]\n\n' + endingText;
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert document analyst with deep expertise in content analysis and metadata generation. Your task is to thoroughly analyze the provided document content and generate comprehensive, accurate metadata.
+
+Required Metadata Fields:
+${fieldDescriptions}
+
+Analysis Guidelines:
+- Read and understand the ENTIRE document content provided
+- Extract specific information directly from the text, not assumptions
+- Generate precise, content-based descriptions and summaries
+- Identify actual topics, themes, and key concepts mentioned in the text
+- Extract real keywords and terminology used in the document
+- Determine the document's purpose, audience, and subject matter from content
+- Identify any mentioned authors, organizations, or sources
+- Note the document structure, main sections, and key findings
+- Be specific and detailed - avoid generic descriptions
+- Base ALL metadata on actual document content, not filename
+
+Return your response as JSON with the field names as keys. Ensure each field provides meaningful, content-specific information.`
+          },
+          {
+            role: "user",
+            content: `Please analyze this document content and generate detailed metadata:
+
+File Information:
+- Filename: ${fileContext.filename}
+- File Type: ${fileContext.fileType}
+- File Size: ${fileContext.fileSize} bytes
+
+Document Content:
+${processedText}
+
+Based on the actual content above, provide comprehensive and accurate metadata that reflects what the document actually contains, discusses, and covers.`
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 1000,
+        temperature: 0.3, // Lower temperature for more consistent, factual analysis
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{}');
+      console.log('Generated content-based metadata:', Object.keys(result));
+      return result;
+    } catch (error) {
+      throw new Error(`Failed to analyze document content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async analyzeDocumentByContext(context: any, metadataFields: MetadataField[]): Promise<GeneratedMetadata> {
     try {
       const fieldDescriptions = metadataFields
