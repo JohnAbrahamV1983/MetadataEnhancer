@@ -107,19 +107,23 @@ export class FileProcessorService {
           const { promisify } = require('util');
           const execAsync = promisify(exec);
           
+          console.log(`Attempting PDF text extraction for: ${tempPdfPath}`);
+          
           // Try pdftotext command with better options
           try {
-            const { stdout } = await execAsync(`pdftotext -layout -nopgbrk "${tempPdfPath}" -`, { timeout: 30000 });
+            console.log('Trying pdftotext with layout preservation...');
+            const { stdout } = await execAsync(`/nix/store/1f2vbia1rg1rh5cs0ii49v3hln9i36rv-poppler-utils-24.02.0/bin/pdftotext -layout -nopgbrk "${tempPdfPath}" -`, { timeout: 30000 });
             extractedText = stdout.trim();
-            console.log(`Extracted text using pdftotext: ${extractedText.length} characters`);
+            console.log(`✓ SUCCESS: Extracted text using pdftotext: ${extractedText.length} characters`);
           } catch (pdfTextError: any) {
-            console.log('pdftotext failed, trying alternative:', pdfTextError.message);
+            console.log('pdftotext with layout failed:', pdfTextError.message);
             
             // Alternative: Try without layout preservation
             try {
-              const { stdout: rawText } = await execAsync(`pdftotext "${tempPdfPath}" -`, { timeout: 30000 });
+              console.log('Trying pdftotext without layout...');
+              const { stdout: rawText } = await execAsync(`/nix/store/1f2vbia1rg1rh5cs0ii49v3hln9i36rv-poppler-utils-24.02.0/bin/pdftotext "${tempPdfPath}" -`, { timeout: 30000 });
               extractedText = rawText.trim();
-              console.log(`Extracted raw text: ${extractedText.length} characters`);
+              console.log(`✓ SUCCESS: Extracted raw text: ${extractedText.length} characters`);
             } catch (rawTextError: any) {
               console.log('Raw pdftotext also failed:', rawTextError.message);
             }
